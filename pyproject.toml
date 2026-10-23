@@ -1,0 +1,30 @@
+[project]
+name = "incident-detective"
+version = "0.1.0"
+description = "Fully local, evidence-grounded incident investigation with LangGraph and Neo4j"
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+dependencies = [
+    "langgraph>=1.0,<2",
+    "neo4j>=5.26,<7",
+    "streamlit>=1.41,<2",
+    "pyvis>=0.3.2,<0.4",
+    "ollama>=0.6,<1",
+    "pydantic>=2.10,<3",
+    "python-dotenv>=1.0,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.3,<10", "ruff>=0.14,<1"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["integration: requires seeded local Neo4j", "llm: requires local Ollama model"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

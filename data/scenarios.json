@@ -1,0 +1,516 @@
+{
+  "demo_id": "incident-detective-v1",
+  "nodes": [
+    {
+      "label": "Component",
+      "id": "analytics-api",
+      "name": "Analytics API",
+      "type": "service",
+      "description": "Serves customer analytics. Synthetic component; no live traffic."
+    },
+    {
+      "label": "Component",
+      "id": "analytics-store",
+      "name": "Analytics Store",
+      "type": "storage",
+      "description": "Simulated analytical serving store, fed by ingestion."
+    },
+    {
+      "label": "Component",
+      "id": "ingestion-pipeline",
+      "name": "Ingestion Pipeline",
+      "type": "pipeline",
+      "description": "Transforms and validates incoming event schemas."
+    },
+    {
+      "label": "Component",
+      "id": "event-connector",
+      "name": "Event Connector",
+      "type": "connector",
+      "description": "Maps event payloads into the ingestion schema."
+    },
+    {
+      "label": "Component",
+      "id": "orders-api",
+      "name": "Orders API",
+      "type": "service",
+      "description": "Simulated order request handler with an application connection pool."
+    },
+    {
+      "label": "Component",
+      "id": "orders-database",
+      "name": "Orders Database",
+      "type": "storage",
+      "description": "Simulated order storage dependency; no database process is required."
+    },
+    {
+      "label": "Component",
+      "id": "notification-worker",
+      "name": "Notification Worker",
+      "type": "worker",
+      "description": "Unrelated email and push delivery worker."
+    },
+    {
+      "label": "Component",
+      "id": "inventory-service",
+      "name": "Inventory Service",
+      "type": "service",
+      "description": "Unrelated stock availability service."
+    },
+    {
+      "label": "Component",
+      "id": "cache-service",
+      "name": "Cache Service",
+      "type": "cache",
+      "description": "Synthetic shared cache for inventory and notifications."
+    },
+    {
+      "label": "Component",
+      "id": "gateway",
+      "name": "API Gateway",
+      "type": "service",
+      "description": "Synthetic entry point for orders and analytics."
+    },
+    {
+      "label": "Component",
+      "id": "identity-service",
+      "name": "Identity Service",
+      "type": "service",
+      "description": "Unrelated identity metadata component."
+    },
+    {
+      "label": "Deployment",
+      "id": "deploy-014",
+      "timestamp": "2026-10-21T10:38:00Z",
+      "version": "2.8.0",
+      "description": "Update connector field mapping and schema normalization."
+    },
+    {
+      "label": "Deployment",
+      "id": "deploy-015",
+      "timestamp": "2026-10-21T10:50:00Z",
+      "version": "2.8.1",
+      "description": "Subsequent connector release, after the analytics incident."
+    },
+    {
+      "label": "Deployment",
+      "id": "deploy-016",
+      "timestamp": "2026-10-21T14:08:00Z",
+      "version": "1.9.0",
+      "description": "Notification template update, outside the orders dependency graph."
+    },
+    {
+      "label": "Deployment",
+      "id": "deploy-013",
+      "timestamp": "2026-10-21T08:00:00Z",
+      "version": "2.7.9",
+      "description": "Earlier connector maintenance, outside the investigation time window."
+    },
+    {
+      "label": "Deployment",
+      "id": "deploy-009",
+      "timestamp": "2026-09-10T09:32:00Z",
+      "version": "2.3.0",
+      "description": "Historical connector schema mapping release."
+    },
+    {
+      "label": "Incident",
+      "id": "INC-104",
+      "timestamp": "2026-10-21T10:42:00Z",
+      "summary": "Analytics API failure",
+      "severity": "SEV-1",
+      "status": "open"
+    },
+    {
+      "label": "Incident",
+      "id": "INC-105",
+      "timestamp": "2026-10-21T14:15:00Z",
+      "summary": "Orders API timeout",
+      "severity": "SEV-2",
+      "status": "open"
+    },
+    {
+      "label": "Incident",
+      "id": "INC-092",
+      "timestamp": "2026-09-10T09:40:00Z",
+      "summary": "Analytics schema mapping regression",
+      "severity": "SEV-1",
+      "status": "resolved"
+    },
+    {
+      "label": "Incident",
+      "id": "INC-071",
+      "timestamp": "2026-08-18T11:10:00Z",
+      "summary": "Orders connection pool exhausted",
+      "severity": "SEV-2",
+      "status": "resolved"
+    },
+    {
+      "label": "Incident",
+      "id": "INC-099",
+      "timestamp": "2026-10-15T16:00:00Z",
+      "summary": "Inventory cache miss spike",
+      "severity": "SEV-3",
+      "status": "resolved"
+    },
+    {
+      "label": "Symptom",
+      "id": "schema-error-104",
+      "timestamp": "2026-10-21T10:41:00Z",
+      "type": "SCHEMA_MISMATCH",
+      "message": "Incoming event.customer_id is a string; ingestion expects integer."
+    },
+    {
+      "label": "Symptom",
+      "id": "api-error-104",
+      "timestamp": "2026-10-21T10:42:00Z",
+      "type": "HTTP_500",
+      "message": "Analytics requests return HTTP 500; serving data cannot be refreshed."
+    },
+    {
+      "label": "Symptom",
+      "id": "lag-104",
+      "timestamp": "2026-10-21T10:41:30Z",
+      "type": "INGESTION_LAG",
+      "message": "Ingestion freshness delay increased to 90 seconds."
+    },
+    {
+      "label": "Symptom",
+      "id": "pool-105",
+      "timestamp": "2026-10-21T14:12:00Z",
+      "type": "CONNECTION_POOL_EXHAUSTED",
+      "message": "Application pool at 40/40 active connections; 128 pending acquisitions."
+    },
+    {
+      "label": "Symptom",
+      "id": "latency-105",
+      "timestamp": "2026-10-21T14:13:00Z",
+      "type": "HIGH_LATENCY",
+      "message": "Order request latency exceeded 8 seconds."
+    },
+    {
+      "label": "Symptom",
+      "id": "timeout-105",
+      "timestamp": "2026-10-21T14:15:00Z",
+      "type": "REQUEST_TIMEOUT",
+      "message": "Requests timed out while acquiring an application database connection."
+    },
+    {
+      "label": "Symptom",
+      "id": "schema-error-092",
+      "timestamp": "2026-09-10T09:38:00Z",
+      "type": "SCHEMA_MISMATCH",
+      "message": "Incompatible connector field mapping rejected by ingestion."
+    },
+    {
+      "label": "Symptom",
+      "id": "api-error-092",
+      "timestamp": "2026-09-10T09:40:00Z",
+      "type": "HTTP_500",
+      "message": "Analytics API serving requests failed following ingestion rejects."
+    },
+    {
+      "label": "Symptom",
+      "id": "pool-071",
+      "timestamp": "2026-08-18T11:06:00Z",
+      "type": "CONNECTION_POOL_EXHAUSTED",
+      "message": "Pool reached maximum active connections under elevated concurrency."
+    },
+    {
+      "label": "Symptom",
+      "id": "timeout-071",
+      "timestamp": "2026-08-18T11:10:00Z",
+      "type": "REQUEST_TIMEOUT",
+      "message": "Connection acquisition deadline exceeded."
+    },
+    {
+      "label": "Symptom",
+      "id": "cache-099",
+      "timestamp": "2026-10-15T16:00:00Z",
+      "type": "CACHE_MISS",
+      "message": "Inventory cache miss ratio exceeded synthetic threshold."
+    },
+    {
+      "label": "Symptom",
+      "id": "notification-noise",
+      "timestamp": "2026-10-21T10:40:00Z",
+      "type": "RETRY_SPIKE",
+      "message": "Unrelated notification retry spike."
+    },
+    {
+      "label": "Symptom",
+      "id": "cache-noise",
+      "timestamp": "2026-10-21T14:14:00Z",
+      "type": "CACHE_MISS",
+      "message": "Unrelated synthetic cache misses."
+    },
+    {
+      "label": "Symptom",
+      "id": "future-schema",
+      "timestamp": "2026-10-21T10:55:00Z",
+      "type": "SCHEMA_MISMATCH",
+      "message": "Future schema check; must not leak into INC-104 investigation."
+    },
+    {
+      "label": "Finding",
+      "id": "finding-092",
+      "conclusion": "Connector release introduced an incompatible schema mapping; correcting the mapping restored ingestion and analytics serving.",
+      "confirmed": true,
+      "created_at": "2026-09-10T12:00:00Z"
+    },
+    {
+      "label": "Finding",
+      "id": "finding-071",
+      "conclusion": "Application connection pool exhausted under elevated concurrency; pool sizing and acquisition handling were corrected.",
+      "confirmed": true,
+      "created_at": "2026-08-18T13:00:00Z"
+    }
+  ],
+  "edges": [
+    {
+      "source": "analytics-api",
+      "type": "DEPENDS_ON",
+      "target": "analytics-store"
+    },
+    {
+      "source": "analytics-store",
+      "type": "DEPENDS_ON",
+      "target": "ingestion-pipeline"
+    },
+    {
+      "source": "ingestion-pipeline",
+      "type": "DEPENDS_ON",
+      "target": "event-connector"
+    },
+    {
+      "source": "orders-api",
+      "type": "DEPENDS_ON",
+      "target": "orders-database"
+    },
+    {
+      "source": "notification-worker",
+      "type": "DEPENDS_ON",
+      "target": "cache-service"
+    },
+    {
+      "source": "inventory-service",
+      "type": "DEPENDS_ON",
+      "target": "cache-service"
+    },
+    {
+      "source": "gateway",
+      "type": "DEPENDS_ON",
+      "target": "analytics-api"
+    },
+    {
+      "source": "gateway",
+      "type": "DEPENDS_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "gateway",
+      "type": "DEPENDS_ON",
+      "target": "identity-service"
+    },
+    {
+      "source": "deploy-014",
+      "type": "CHANGED",
+      "target": "event-connector"
+    },
+    {
+      "source": "deploy-015",
+      "type": "CHANGED",
+      "target": "event-connector"
+    },
+    {
+      "source": "deploy-016",
+      "type": "CHANGED",
+      "target": "notification-worker"
+    },
+    {
+      "source": "deploy-013",
+      "type": "CHANGED",
+      "target": "event-connector"
+    },
+    {
+      "source": "deploy-009",
+      "type": "CHANGED",
+      "target": "event-connector"
+    },
+    {
+      "source": "INC-104",
+      "type": "AFFECTS",
+      "target": "analytics-api"
+    },
+    {
+      "source": "INC-105",
+      "type": "AFFECTS",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-092",
+      "type": "AFFECTS",
+      "target": "analytics-api"
+    },
+    {
+      "source": "INC-071",
+      "type": "AFFECTS",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-099",
+      "type": "AFFECTS",
+      "target": "inventory-service"
+    },
+    {
+      "source": "schema-error-104",
+      "type": "OBSERVED_ON",
+      "target": "ingestion-pipeline"
+    },
+    {
+      "source": "INC-104",
+      "type": "HAS_SYMPTOM",
+      "target": "schema-error-104"
+    },
+    {
+      "source": "api-error-104",
+      "type": "OBSERVED_ON",
+      "target": "analytics-api"
+    },
+    {
+      "source": "INC-104",
+      "type": "HAS_SYMPTOM",
+      "target": "api-error-104"
+    },
+    {
+      "source": "lag-104",
+      "type": "OBSERVED_ON",
+      "target": "analytics-store"
+    },
+    {
+      "source": "INC-104",
+      "type": "HAS_SYMPTOM",
+      "target": "lag-104"
+    },
+    {
+      "source": "pool-105",
+      "type": "OBSERVED_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-105",
+      "type": "HAS_SYMPTOM",
+      "target": "pool-105"
+    },
+    {
+      "source": "latency-105",
+      "type": "OBSERVED_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-105",
+      "type": "HAS_SYMPTOM",
+      "target": "latency-105"
+    },
+    {
+      "source": "timeout-105",
+      "type": "OBSERVED_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-105",
+      "type": "HAS_SYMPTOM",
+      "target": "timeout-105"
+    },
+    {
+      "source": "schema-error-092",
+      "type": "OBSERVED_ON",
+      "target": "ingestion-pipeline"
+    },
+    {
+      "source": "INC-092",
+      "type": "HAS_SYMPTOM",
+      "target": "schema-error-092"
+    },
+    {
+      "source": "api-error-092",
+      "type": "OBSERVED_ON",
+      "target": "analytics-api"
+    },
+    {
+      "source": "INC-092",
+      "type": "HAS_SYMPTOM",
+      "target": "api-error-092"
+    },
+    {
+      "source": "pool-071",
+      "type": "OBSERVED_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-071",
+      "type": "HAS_SYMPTOM",
+      "target": "pool-071"
+    },
+    {
+      "source": "timeout-071",
+      "type": "OBSERVED_ON",
+      "target": "orders-api"
+    },
+    {
+      "source": "INC-071",
+      "type": "HAS_SYMPTOM",
+      "target": "timeout-071"
+    },
+    {
+      "source": "cache-099",
+      "type": "OBSERVED_ON",
+      "target": "inventory-service"
+    },
+    {
+      "source": "INC-099",
+      "type": "HAS_SYMPTOM",
+      "target": "cache-099"
+    },
+    {
+      "source": "notification-noise",
+      "type": "OBSERVED_ON",
+      "target": "notification-worker"
+    },
+    {
+      "source": "cache-noise",
+      "type": "OBSERVED_ON",
+      "target": "cache-service"
+    },
+    {
+      "source": "future-schema",
+      "type": "OBSERVED_ON",
+      "target": "ingestion-pipeline"
+    },
+    {
+      "source": "finding-092",
+      "type": "EXPLAINS",
+      "target": "INC-092"
+    },
+    {
+      "source": "finding-092",
+      "type": "ATTRIBUTED_TO",
+      "target": "deploy-009"
+    },
+    {
+      "source": "finding-092",
+      "type": "ATTRIBUTED_TO",
+      "target": "event-connector"
+    },
+    {
+      "source": "finding-071",
+      "type": "EXPLAINS",
+      "target": "INC-071"
+    },
+    {
+      "source": "finding-071",
+      "type": "ATTRIBUTED_TO",
+      "target": "orders-api"
+    }
+  ]
+}

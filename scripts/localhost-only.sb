@@ -1,0 +1,6 @@
+;; Optional macOS runtime verification: deny non-loopback TCP/UDP without changing Wi-Fi.
+;; This profile restricts the launched process and its children only.
+(version 1)
+(allow default)
+(deny network-outbound)
+(allow network-outbound (remote ip "localhost:*"))

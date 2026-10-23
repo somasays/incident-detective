@@ -1,0 +1,2 @@
+# Keep installation/cache writes inside the workspace when using managed permissions.
+cache-dir = ".uv-cache"
