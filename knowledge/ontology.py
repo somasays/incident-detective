@@ -56,6 +56,11 @@ def ensure_schema(database):
             f"CREATE CONSTRAINT incident_detective_{label.lower()}_id IF NOT EXISTS "
             f"FOR (n:{label}) REQUIRE n.id IS UNIQUE"
         )
+        if label in LABELS:
+            database.write(
+                f"CREATE INDEX detective_{label.lower()}_scope_id IF NOT EXISTS "
+                f"FOR (n:{label}) ON (n.demo_id, n.id)"
+            )
     for label in ("Deployment", "Symptom"):
         database.write(
             f"CREATE INDEX detective_{label.lower()}_component_time IF NOT EXISTS "

@@ -80,6 +80,14 @@ def test_construct_incrementally_and_preserve_as_of_topology(live_inputs):
     after = repo.dependencies(new["id"])
     assert any(r["component_id"].endswith(":backup-adapter") for r in after)
     assert not any(r["component_id"].endswith(":source-adapter") for r in after)
+    old_view = repo.graph_page(["Component"], ["DEPENDS_ON"], incident_time=old["timestamp"])
+    new_view = repo.graph_page(["Component"], ["DEPENDS_ON"], incident_time=new["timestamp"])
+    assert any(
+        e["source"].endswith(":loader") and e["target"].endswith(":source-adapter")
+        for e in old_view["edges"]
+    )
+    assert not any(e["target"].endswith(":source-adapter") for e in new_view["edges"])
+    assert any(e["target"].endswith(":backup-adapter") for e in new_view["edges"])
     graph = repo.evidence_graph([r["component_id"] for r in before], old["timestamp"])
     observed = [e for e in graph["edges"] if e["properties"]["method"] == "observed_trace"]
     assert len(observed) == 1 and observed[0]["properties"]["source_ref"].endswith(":1")

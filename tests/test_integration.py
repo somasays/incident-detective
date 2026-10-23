@@ -148,6 +148,31 @@ def test_namespace_isolation(live_graph):
         db.write("MATCH (n {demo_id: $scope}) DETACH DELETE n", scope=foreign)
 
 
+def test_graph_browser_paginates_and_preserves_real_edges(live_graph):
+    from knowledge.ontology import LABELS, RELATIONSHIPS
+
+    _, repo, _, namespace, _ = live_graph
+    seen, cursor = [], ""
+    while True:
+        page = repo.graph_page(list(LABELS), list(RELATIONSHIPS), after_id=cursor, node_limit=7)
+        assert len(page["nodes"]) <= 7
+        ids = {n["id"] for n in page["nodes"]}
+        assert all(n["demo_id"] == namespace for n in page["nodes"])
+        assert all(e["source"] in ids and e["target"] in ids for e in page["edges"])
+        seen.extend(n["id"] for n in page["nodes"])
+        if not page["has_more_nodes"]:
+            break
+        cursor = page["nodes"][-1]["id"]
+    assert len(seen) == len(set(seen)) == 37
+    complete = repo.graph_page(list(LABELS), list(RELATIONSHIPS))
+    assert len(complete["edges"]) == 49
+    capped = repo.graph_page(list(LABELS), list(RELATIONSHIPS), edge_limit=3)
+    assert len(capped["edges"]) == 3 and capped["has_more_edges"]
+    filtered = repo.graph_page(["Component"], ["DEPENDS_ON"])
+    assert len(filtered["nodes"]) == 11
+    assert all(e["type"] == "DEPENDS_ON" for e in filtered["edges"])
+
+
 @pytest.mark.llm
 @pytest.mark.skipif(os.getenv("RUN_OLLAMA_TESTS") != "1", reason="Enable real local model check")
 def test_real_model_ablation_remains_grounded(live_graph):

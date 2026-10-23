@@ -53,6 +53,22 @@ and `.env`; the application never connects to a cloud database.
 
 ## Investigate
 
+The dashboard has three workspace views:
+
+- **Ontology:** a schema diagram generated from `knowledge/ontology.json`, entity/property inspection,
+  permitted relationship directions, source construction rules, and the downloadable contract.
+  This view works without Neo4j or Ollama.
+- **Knowledge Graph:** stored instances queried directly from the selected Neo4j namespace, independent
+  of investigation results. Filter entity/relationship types, inspect node and relationship provenance,
+  focus a neighborhood, and download the displayed subgraph. It does not call Ollama.
+- **Investigation:** the bounded LangGraph workflow, hypotheses, evidence, memory, and confirmation.
+
+In **Knowledge Graph**, the default is all recorded dependency history. Choose an incident under
+**Dependency time** to filter dependency validity intervals at that incident's timestamp. Other stored
+events and the latest component metadata remain visible. Pagination uses stable entity IDs, with
+50–200 nodes per page and at most 400 relationships. Only connections between displayed nodes are
+shown; the view explicitly reports when a display budget is reached. Refresh after ingestion commits.
+
 1. Select **INC-104 — Analytics API failure**, then click **Investigate**.
 2. Follow the dependency path from Analytics API through Analytics Store and Ingestion Pipeline to
    Event Connector. A deployment changes the connector at 10:38 UTC; a schema mismatch appears at
@@ -361,6 +377,10 @@ The following checks passed on this 24 GB Apple Silicon Mac:
   source construction, cursor atomicity, historical topology, and a real local-model investigation
   after removing the connector deployment, plus confirmation in the constructed graph's namespace.
 - `uv run ruff check .`: passed.
+- The subsequent ontology/graph workspace change passed **107 tests with the model test deselected**
+  (`RUN_NEO4J_TESTS=1 uv run --offline pytest -q -m 'not llm'`). Chrome verified both diagrams, the
+  source-derived four-component graph before any incident existed, provenance inspection, and dataset
+  preservation across navigation. These read-only views do not invoke the model.
 - Both real investigations completed through LangGraph and produced validated hypotheses. Both
   were also exercised in Chrome; the interactive graph, evidence, historical memory and node
   inspection rendered. Selecting or inspecting cached results did not repeat inference.
@@ -445,3 +465,58 @@ if you want to keep confirmed findings. Constraints enforce unique IDs per label
 - **60–75s:** Investigate INC-105; show pool exhaustion, historical context and no relevant deployment.
 - **75–90s:** “Confirmed investigations make future investigations smarter.” Demonstrate explicit
   confirmation after describing the independent verification.
+
+## Construction-first demo walkthrough
+
+If the services are already running, open <http://localhost:8501>. Otherwise run these from the
+repository root (start the Ollama app or `OLLAMA_NO_CLOUD=1 ollama serve` if needed):
+
+```bash
+docker compose up -d --pull never
+uv sync --locked --offline
+uv run python seed.py
+uv run python scripts/preflight.py
+uv run streamlit run app.py
+```
+
+For a fresh source-construction walkthrough, use a new output directory and namespace. The initial
+stage refuses to overwrite an existing example. If it already exists, continue with the watcher:
+
+```bash
+# Second terminal: generate initial manifest/trace exports and watch them.
+uv run python scripts/create_ingestion_example.py --output artifacts/live-demo \
+  --namespace inputs-live-demo --stage initial
+uv run python ingest.py --sources artifacts/live-demo/sources.json --watch
+```
+
+1. Open **Ontology**. Show the five operational types, seven relationship types, required properties,
+   and the rules that permit each assertion. Select `Component`, then `Finding` in the type inspector.
+2. Open **Knowledge Graph**, choose **Constructed from local sources · inputs-live-demo**, and click
+   **Refresh graph**. Initially there are four components and three dependency relationships. Show
+   `loader → source-adapter`: this dashed edge was derived from linked trace spans rather than a
+   manifest declaration. Inspect its source reference in **Relationship properties**.
+3. In a third terminal, append an incident and its supporting source records:
+
+   ```bash
+   uv run python scripts/create_ingestion_example.py --output artifacts/live-demo --stage incident
+   ```
+
+4. Wait for the watcher to report committed records, then **Refresh graph**. The graph grows from four
+   to eight nodes: show the new deployment, incident and two symptoms. Inspect a node's source file,
+   line and payload hash.
+5. Open **Investigation**, select `alert-42`, and click **Investigate**. The local model interprets
+   facts that were constructed by the pipeline. Its result remains a hypothesis requiring verification.
+6. Append a topology change while the watcher continues running:
+
+   ```bash
+   uv run python scripts/create_ingestion_example.py --output artifacts/live-demo --stage changed-topology
+   ```
+
+7. Return to **Knowledge Graph**, click **Refresh graph**, and choose `alert-42 · 10:42 UTC`, then
+   `alert-43 · 11:02 UTC` under **Dependency time**. The old incident retains the trace-observed source
+   adapter; the later incident follows the declared backup adapter. Use the `Component` entity filter
+   to make the topology change especially easy to see.
+
+All example inputs are synthetic. This walkthrough demonstrates parsing, ontology enforcement,
+identity resolution, incremental ingestion, provenance and time-aware retrieval. It does not claim
+that a production environment has been discovered automatically.

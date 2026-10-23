@@ -12,6 +12,27 @@ from knowledge.bounds import (
     MAX_NEIGHBORS,
     MAX_SYMPTOMS,
 )
+from knowledge.ontology import LABELS, RELATIONSHIPS
+
+BROWSE_NODES = {
+    label: f"MATCH (n:{label} {{demo_id:$demo_id}}) WHERE n.id > $after_id "
+    "RETURN n{.*, label:head(labels(n))} AS node ORDER BY n.id LIMIT $limit"
+    for label in LABELS
+}
+BROWSE_EDGES = {
+    label: f"UNWIND $source_ids AS source_id MATCH (n:{label} {{id:source_id,demo_id:$demo_id}}) "
+    "CALL (n) { "
+    "MATCH (n)-[r]->(m {demo_id:$demo_id}) "
+    "WHERE m.id IN $entity_ids AND type(r) IN $relationship_types "
+    "AND (type(r) <> 'DEPENDS_ON' OR $at IS NULL OR "
+    " ((r.valid_from_ms IS NULL OR r.valid_from_ms <= $at) AND "
+    "  (r.valid_to_ms IS NULL OR $at < r.valid_to_ms))) "
+    "RETURN r,m ORDER BY type(r),m.id,elementId(r) LIMIT $limit } "
+    "RETURN {source:n.id,target:m.id,type:type(r),properties:properties(r), "
+    "native_id:elementId(r)} AS edge "
+    "ORDER BY n.id,type(r),m.id,elementId(r) LIMIT $limit"
+    for label in LABELS
+}
 
 LIST_INCIDENTS = """
 MATCH (i:Incident {demo_id: $demo_id})-[:AFFECTS]->(c:Component {demo_id: $demo_id})
@@ -144,6 +165,54 @@ class KnowledgeRepository:
             "s.offset AS committed_bytes, s.records AS records, s.updated_at AS last_commit "
             "ORDER BY source LIMIT 32"
         )
+
+    def graph_page(
+        self,
+        labels,
+        relationship_types,
+        *,
+        after_id="",
+        node_limit=100,
+        edge_limit=400,
+        incident_time=None,
+    ):
+        """Keyset-paginated instance view with scoped queries and bounded returned records."""
+        from knowledge.ontology import epoch_ms
+
+        if not set(labels) <= LABELS or not set(relationship_types) <= RELATIONSHIPS:
+            raise ValueError("Unknown ontology label or relationship type.")
+        if not 1 <= node_limit <= 200 or not 1 <= edge_limit <= 1000:
+            raise ValueError("Graph display budget exceeded.")
+        candidates = [
+            row["node"]
+            for label in sorted(set(labels))
+            for row in self._read(BROWSE_NODES[label], after_id=after_id, limit=node_limit + 1)
+        ]
+        candidates.sort(key=lambda n: n["id"])
+        nodes = candidates[:node_limit]
+        ids = [n["id"] for n in nodes]
+        edges = []
+        for label in sorted(set(labels)):
+            source_ids = [n["id"] for n in nodes if n["label"] == label]
+            if source_ids and relationship_types:
+                edges.extend(
+                    row["edge"]
+                    for row in self._read(
+                        BROWSE_EDGES[label],
+                        source_ids=source_ids,
+                        entity_ids=ids,
+                        relationship_types=sorted(set(relationship_types)),
+                        limit=edge_limit + 1,
+                        at=epoch_ms(incident_time) if incident_time else None,
+                    )
+                )
+        edges.sort(key=lambda e: (e["source"], e["type"], e["target"], e["native_id"]))
+        return {
+            "nodes": nodes,
+            "edges": edges[:edge_limit],
+            "has_more_nodes": len(candidates) > node_limit,
+            "has_more_edges": len(edges) > edge_limit,
+        }
 
     def get_incident(self, incident_id):
         rows = self._read(LOAD_INCIDENT, incident_id=incident_id)

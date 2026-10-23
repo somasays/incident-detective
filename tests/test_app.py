@@ -55,3 +55,48 @@ def test_dashboard_database_unavailable():
         app.run()
         assert not app.exception
         assert any("Neo4j is unavailable" in w.value for w in app.warning)
+
+
+def test_ontology_view_works_without_database_or_model():
+    with patch("knowledge.db.Database", side_effect=AssertionError("Database must not be used")):
+        app = AppTest.from_file(str(Path(__file__).parents[1] / "app.py"), default_timeout=20)
+        app.session_state["workspace_view"] = "Ontology"
+        app.run()
+        assert not app.exception
+        assert [metric.value for metric in app.metric] == ["1.0.0", "5", "7", "8"]
+        assert app.selectbox[0].value == "Component"
+        app.selectbox[0].set_value("Finding").run()
+        assert not app.exception
+
+
+def test_graph_and_ontology_navigation_do_not_repeat_inference(repository, valid_analysis):
+    from test_agent import Reasoner
+
+    from config import DEMO_ID
+
+    repository.namespace = DEMO_ID
+    repository.list_incidents = lambda: [repository.get_incident("INC-104")]
+    repository.graph_page = lambda labels, relationships, **kwargs: {
+        "nodes": [n for n in repository.nodes.values() if n["label"] in labels],
+        "edges": [e for e in repository.edges if e["type"] in relationships],
+        "has_more_nodes": False,
+        "has_more_edges": False,
+    }
+    reasoner = Reasoner(valid_analysis)
+    with (
+        patch("knowledge.db.Database", DummyDatabase),
+        patch("knowledge.queries.KnowledgeRepository", return_value=repository),
+        patch("agent.reasoning.OllamaReasoner", return_value=reasoner),
+    ):
+        app = AppTest.from_file(str(Path(__file__).parents[1] / "app.py"), default_timeout=20)
+        app.run()
+        app.button[0].click().run()
+        assert reasoner.calls == 1
+        app.radio(key="workspace_view").set_value("Knowledge Graph").run()
+        assert not app.exception
+        assert len(app.selectbox(key="inspect_stored_node_" + DEMO_ID).options) == 37
+        app.radio(key="workspace_view").set_value("Ontology").run()
+        assert not app.exception
+        app.radio(key="workspace_view").set_value("Investigation").run()
+        assert not app.exception
+        assert reasoner.calls == 1

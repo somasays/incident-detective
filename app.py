@@ -16,6 +16,7 @@ from knowledge.ontology import VERSION
 from knowledge.queries import KnowledgeRepository
 from ui.graph_view import render_evidence_graph
 from ui.styles import CSS, LOGO, header
+from ui.views import knowledge_graph_view, ontology_view
 
 st.set_page_config(
     page_title="Incident Detective",
@@ -25,6 +26,15 @@ st.set_page_config(
 )
 st.markdown(CSS, unsafe_allow_html=True)
 st.markdown(header(), unsafe_allow_html=True)
+view = st.radio(
+    "WORKSPACE VIEW",
+    ["Investigation", "Ontology", "Knowledge Graph"],
+    horizontal=True,
+    key="workspace_view",
+)
+if view == "Ontology":
+    ontology_view()
+    st.stop()
 
 
 def esc(value):
@@ -143,15 +153,19 @@ connection_error = None
 incidents = []
 try:
     database, repository, reasoner = resources()
+    namespaces = repository.list_namespaces()
+    previous_namespace = st.session_state.get("selected_graph_namespace", DEMO_ID)
     namespace = st.selectbox(
         "GRAPH DATA",
-        repository.list_namespaces(),
+        namespaces,
+        index=namespaces.index(previous_namespace) if previous_namespace in namespaces else 0,
         format_func=lambda value: (
             "Manual fixture baseline · dummy_data"
             if value == DEMO_ID
             else f"Constructed from local sources · {value}"
         ),
     )
+    st.session_state.selected_graph_namespace = namespace
     if namespace != DEMO_ID:
         repository = KnowledgeRepository(database, namespace)
     with st.expander("Graph construction · ontology & sources"):
@@ -165,11 +179,23 @@ try:
                 "and errors. "
                 "Refresh this page after new source records are ingested."
             )
-    incidents = repository.list_incidents()
-    if not incidents:
+    incidents = repository.list_incidents() if view == "Investigation" else []
+    if view == "Investigation" and not incidents:
         connection_error = "No open incidents in this graph dataset. Import incident records first."
 except Exception as exc:
     connection_error = f"Local Neo4j is unavailable ({type(exc).__name__})."
+
+if view == "Knowledge Graph":
+    if connection_error:
+        st.warning(connection_error)
+        st.code("docker compose up -d\nuv run python seed.py", language="bash")
+    else:
+        try:
+            knowledge_graph_view(repository)
+        except Exception as exc:
+            st.error(f"Graph retrieval unavailable ({type(exc).__name__}).")
+            st.caption("Check the local Neo4j connection and refresh this view.")
+    st.stop()
 
 controls, runtime = st.columns([3, 2], gap="large")
 with controls:

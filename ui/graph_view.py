@@ -19,7 +19,7 @@ def visualization_id(node):
     return f"{node['label'].lower()}:{node['id']}"
 
 
-def build_network(evidence: dict, analysis: dict | None = None) -> Network:
+def build_network(evidence: dict, analysis: dict | None = None, *, overview=False) -> Network:
     network = Network(
         height="590px",
         width="100%",
@@ -46,10 +46,12 @@ def build_network(evidence: dict, analysis: dict | None = None) -> Network:
             color = "#0D9488"
         elif label == "Component" and n.get("type") in {"storage", "cache"}:
             color = "#526D96"
-        elif label == "Incident" and not is_current:
+        elif (
+            label == "Incident" and not is_current and not (overview and n.get("status") == "open")
+        ):
             color = "#7861AA"
         level = depth.get(id, 6)
-        if is_current:
+        if is_current or (overview and label == "Incident"):
             level = 0
         elif label == "Deployment":
             targets = [
@@ -159,7 +161,10 @@ def _inline_asset(name):
 
 
 def render_evidence_graph(evidence: dict, analysis: dict | None = None) -> str:
-    network = build_network(evidence, analysis)
+    return render_network(build_network(evidence, analysis))
+
+
+def render_network(network: Network, hint="SCROLL TO ZOOM · DRAG TO PAN · HOVER TO INSPECT") -> str:
 
     # Escape JSON's script terminator, including potentially hostile event/confirmation text.
     def js(value):
@@ -184,8 +189,9 @@ html,body{margin:0;background:#0B1423;color:#94A3B8;font-family:system-ui}
 #graph{width:100%;height:590px;border-radius:12px}
 #hint{position:absolute;bottom:14px;left:18px;font-size:11px;pointer-events:none}
 </style></head><body><div id="graph"></div>
-<div id="hint">SCROLL TO ZOOM · DRAG TO PAN · HOVER TO INSPECT</div>
-<script>"""
+<div id="hint">"""
+        + html.escape(hint)
+        + """</div><script>"""
         + _inline_asset("vis-network.min.js")
         + """</script><script>
 const nodes=new vis.DataSet("""
