@@ -9,9 +9,10 @@ import streamlit.components.v1 as components
 
 from agent.graph import build_investigator
 from agent.reasoning import OllamaReasoner
-from config import Settings
+from config import DEMO_ID, Settings
 from knowledge.db import Database
 from knowledge.memory import confirm_finding
+from knowledge.ontology import VERSION
 from knowledge.queries import KnowledgeRepository
 from ui.graph_view import render_evidence_graph
 from ui.styles import CSS, LOGO, header
@@ -142,9 +143,31 @@ connection_error = None
 incidents = []
 try:
     database, repository, reasoner = resources()
+    namespace = st.selectbox(
+        "GRAPH DATA",
+        repository.list_namespaces(),
+        format_func=lambda value: (
+            "Manual fixture baseline · dummy_data"
+            if value == DEMO_ID
+            else f"Constructed from local sources · {value}"
+        ),
+    )
+    if namespace != DEMO_ID:
+        repository = KnowledgeRepository(database, namespace)
+    with st.expander("Graph construction · ontology & sources"):
+        st.caption(f"Ontology {VERSION} · knowledge/ontology.json")
+        if namespace == DEMO_ID:
+            st.caption("This baseline was seeded from manually authored nodes and relationships.")
+        else:
+            st.dataframe(repository.ingestion_status(), hide_index=True, use_container_width=True)
+            st.caption(
+                "Cursors show successful commits. The ingest CLI reports blocked sources "
+                "and errors. "
+                "Refresh this page after new source records are ingested."
+            )
     incidents = repository.list_incidents()
     if not incidents:
-        connection_error = "No open demo incidents found. Run uv run python seed.py."
+        connection_error = "No open incidents in this graph dataset. Import incident records first."
 except Exception as exc:
     connection_error = f"Local Neo4j is unavailable ({type(exc).__name__})."
 
@@ -245,6 +268,7 @@ with left:
             components.html(render_evidence_graph(evidence, result), height=600, scrolling=False)
             st.caption(
                 "Arrows show stored relationship direction. "
+                "Dashed dependencies were observed in traces. "
                 "Red outline marks the leading suspected entity."
             )
             with st.expander("Inspect a graph node"):

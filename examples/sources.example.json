@@ -1,0 +1,10 @@
+{
+  "namespace": "inputs-local",
+  "sources": [
+    {"id": "service-catalog", "adapter": "catalog", "path": "exports/catalog.jsonl", "environment": "local"},
+    {"id": "trace-export", "adapter": "otlp", "path": "exports/traces.jsonl", "environment": "local"},
+    {"id": "release-export", "adapter": "deployments", "path": "exports/deployments.jsonl", "environment": "local"},
+    {"id": "alert-export", "adapter": "incidents", "path": "exports/incidents.jsonl", "environment": "local"},
+    {"id": "application-logs", "adapter": "logs", "path": "exports/logs.jsonl", "environment": "local"}
+  ]
+}

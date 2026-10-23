@@ -16,7 +16,7 @@ def test_expected_nodes_edges_and_highlight(evidence, valid_analysis):
     by_visual = {f"{n['label'].lower()}:{n['id']}": n["id"] for n in evidence["graph"]["nodes"]}
     assert len(graph.edges) == len(retrieved)
     for e in graph.edges:
-        assert (by_visual[e["from"]], e["title"], by_visual[e["to"]]) in retrieved
+        assert (by_visual[e["from"]], e["title"].split(" · ")[0], by_visual[e["to"]]) in retrieved
     assert any(
         e["from"] == "component:analytics-api" and e["to"] == "component:analytics-store"
         for e in graph.edges

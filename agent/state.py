@@ -2,6 +2,7 @@ from typing import Any, TypedDict
 
 
 class InvestigationState(TypedDict, total=False):
+    traversal_truncated: bool
     incident_id: str
     incident: dict[str, Any]
     dependency_paths: list[list[str]]

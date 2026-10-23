@@ -1,5 +1,5 @@
 from config import DEMO_ID
-from knowledge.queries import DEPENDENCIES, KnowledgeRepository
+from knowledge.queries import LOAD_INCIDENT, KnowledgeRepository
 
 
 class RecordingDatabase:
@@ -18,7 +18,7 @@ def test_parameterized_query_and_scope():
     dangerous_id = "INC-104'}) DETACH DELETE n //"
     repo.dependencies(dangerous_id)
     query, params = db.calls[0]
-    assert query == DEPENDENCIES
+    assert query == LOAD_INCIDENT
     assert dangerous_id not in query
     assert params == {"demo_id": DEMO_ID, "incident_id": dangerous_id}
 
@@ -71,3 +71,33 @@ def test_normalize_memory_deduplicates_null_findings():
     assert memories[0]["confirmed_findings"][0]["causes"] == [
         {"id": "event-connector", "label": "Component"}
     ]
+
+
+def test_dependency_growth_is_bounded_and_truncation_is_explicit():
+    class DenseDatabase:
+        def __init__(self):
+            self.frontiers = []
+
+        def read(self, query, **params):
+            if query == LOAD_INCIDENT:
+                return [
+                    {
+                        "incident": {
+                            "affected_component": "root",
+                            "timestamp": "2026-10-23T10:42:00Z",
+                        }
+                    }
+                ]
+            self.frontiers.append(params["frontier"])
+            return [
+                {"source": root, "targets": [f"{root}-{n}" for n in range(17)]}
+                for root in params["frontier"]
+            ]
+
+    db = DenseDatabase()
+    paths = KnowledgeRepository(db).dependencies("incident")
+    assert len(paths) == 64
+    assert len(db.frontiers) == 3
+    assert all(len(frontier) <= 64 for frontier in db.frontiers)
+    assert all(row["truncated"] and len(row["path"]) <= 4 for row in paths)
+    assert len({row["component_id"] for row in paths}) == 64

@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "identity": "namespace + label + environment/service for components; namespace + label + source/event-id for events",
+  "common_properties": {
+    "demo_id": "str", "source_id": "str", "source_ref": "str", "record_hash": "str",
+    "environment": "str", "ontology_version": "str", "ingested_at": "utc",
+    "timestamp_ms": "int", "external_id": "str", "component_id": "str",
+    "metadata_priority": "int", "metadata_timestamp_ms": "int", "last_seen_ms": "int"
+  },
+  "entities": {
+    "Component": {"required": {"name": "str", "type": "str", "description": "str"}},
+    "Deployment": {"required": {"timestamp": "utc", "version": "str", "description": "str", "component_id": "str"}},
+    "Incident": {"required": {"timestamp": "utc", "summary": "str", "severity": "str", "status": "str"}},
+    "Symptom": {"required": {"timestamp": "utc", "type": "str", "message": "str", "component_id": "str"}},
+    "Finding": {"required": {"conclusion": "str", "confirmed": "bool", "created_at": "utc"}}
+  },
+  "relationships": {
+    "DEPENDS_ON": [["Component", "Component"]],
+    "CHANGED": [["Deployment", "Component"]],
+    "AFFECTS": [["Incident", "Component"]],
+    "HAS_SYMPTOM": [["Incident", "Symptom"]],
+    "OBSERVED_ON": [["Symptom", "Component"]],
+    "EXPLAINS": [["Finding", "Incident"]],
+    "ATTRIBUTED_TO": [["Finding", "Deployment"], ["Finding", "Component"]]
+  },
+  "construction_rules": {
+    "catalog": "An explicit depends_on declaration creates a declared dependency, valid until the next complete snapshot from that source/environment.",
+    "otlp": "A cross-service CLIENT-to-SERVER or PRODUCER-to-CONSUMER parent-child pair in the same export is an observed dependency, expiring 15 minutes after observation.",
+    "logs": "WARN, ERROR and FATAL records with an explicit error_type create symptoms. Logs do not establish dependencies or causes.",
+    "deployment": "A deployment record establishes that a release changed a named component, not that it caused an incident.",
+    "finding": "Confirmed causal knowledge requires explicit human confirmation. Ingestion cannot import confirmed findings."
+  },
+  "control_plane": {"IngestionSource": "Atomic byte offset, input fingerprint, source configuration hash, and last catalog timestamp; never sent to the investigator."}
+}

@@ -70,12 +70,14 @@ def build_network(evidence: dict, analysis: dict | None = None) -> Network:
                 label + (" · " + n["type"] if n.get("type") else ""),
                 n.get("timestamp", n.get("created_at", "")),
                 n.get("description", n.get("message", n.get("conclusion", n.get("summary", "")))),
+                n.get("source_ref", ""),
             ]
             if x
         )
-        name = n.get("name", n.get("type", id) if label == "Symptom" else id)
+        display_id = n.get("external_id", id)
+        name = n.get("name", n.get("type", display_id) if label == "Symptom" else display_id)
         if label == "Deployment":
-            name = id + "\n" + n.get("version", "")
+            name = display_id + "\n" + n.get("version", "")
         network.add_node(
             visualization_id(n),
             label=name.replace(" ", "\n", 1) if len(name) > 15 else name,
@@ -100,8 +102,15 @@ def build_network(evidence: dict, analysis: dict | None = None) -> Network:
             visualization_id(nodes[e["source"]]),
             visualization_id(nodes[e["target"]]),
             label=e["type"].replace("_", " "),
-            title=e["type"],
+            title=html.escape(
+                e["type"]
+                + " · "
+                + e.get("properties", {}).get("method", "seeded")
+                + " · "
+                + e.get("properties", {}).get("source_ref", "manual fixture")
+            ),
             arrows="to",
+            dashes=e.get("properties", {}).get("method") == "observed_trace",
             color="#5686B8" if important else "#394860",
             width=2 if important else 1,
             font={"size": 9, "color": "#9DACBF", "strokeWidth": 0, "align": "middle"},

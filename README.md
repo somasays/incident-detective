@@ -11,6 +11,10 @@ Prerequisites: Docker with a running local engine, Ollama, and uv. Python 3.11�
 Initial package, Docker image and model downloads require internet access. Subsequent runtime uses
 localhost only.
 
+The manually seeded prototype is preserved at Git tag **`dummy_data`** (`4606d5a`). The current
+implementation also constructs a separate graph incrementally from local source exports. The
+source example remains synthetic; no real monitoring platform or production environment is connected.
+
 Run these commands from this repository:
 
 ```bash
@@ -67,6 +71,188 @@ citations and highlights. The model may return up to three hypotheses without nu
 
 The app runs inference only when **Investigate** is clicked. Node inspection, downloads and form edits
 reuse the result in Streamlit session state. Results are kept separately for each selected incident.
+
+## Construct the graph from source records
+
+The ingestion path accepts service manifests, release records, incident records, structured logs,
+and OTLP/JSON trace exports. It derives graph mutations from source facts. It does not accept
+prewritten graph edges or ask an LLM to invent relationships.
+
+```text
+Local append-only JSONL exports
+    → strict source adapter
+    → versioned ontology validation + canonical identity
+    → transactional Neo4j facts, provenance and source cursor
+    → bounded, time-aware investigation queries
+```
+
+Exercise construction and continuous updates in three terminals:
+
+```bash
+# Create raw source exports and their source registry (run once in a fresh output directory).
+uv run python scripts/create_ingestion_example.py --stage initial
+
+# Start continuous ingestion; leave this terminal running. Ctrl-C stops it safely.
+uv run python ingest.py --sources artifacts/input-lab/sources.json --watch
+```
+
+```bash
+# In a second terminal, append a release, an incident and application errors.
+uv run python scripts/create_ingestion_example.py --stage incident
+
+# In a third terminal, run the dashboard.
+uv run streamlit run app.py
+```
+
+Refresh the dashboard, choose **Constructed from local sources · inputs-lab** in **GRAPH DATA**, and
+investigate `alert-42`. The `web-api → report-store → loader` path comes from the catalog. The
+`loader → source-adapter` edge comes from matching trace/span parent IDs across services; the manifest
+does not declare it. Hover over an edge or inspect a node to see provenance. Expand **Graph
+construction · ontology & sources** to see the committed source offsets.
+
+Append a topology change while the worker is running:
+
+```bash
+uv run python scripts/create_ingestion_example.py --stage changed-topology
+```
+
+Refresh the dashboard. `alert-43` at 11:02 follows the newly declared `backup-adapter` dependency.
+Re-investigating `alert-42` at 10:42 still follows the previous topology. Catalog updates close old
+relationship intervals; trace observations expire after 15 minutes. Intervals are `[start, end)`.
+This is dependency/event-time history; component descriptions retain the latest authoritative metadata,
+not a complete bitemporal history of every property.
+
+For a one-batch import, omit `--watch`. A poll reads at most 50 complete lines per source and reports
+remaining bytes. The watcher processes subsequent batches. Each line is limited to 1 MiB; each trace
+export to 2,000 spans. A partial final line waits for its terminating newline.
+
+To verify real local reasoning on the constructed graph:
+
+```bash
+uv run python scripts/verify_demo.py --namespace inputs-lab \
+  --incident inputs-lab:incident:alert-export:alert-42 \
+  --output artifacts/constructed --offline-audit
+```
+
+### Ontology and construction rules
+
+**`knowledge/ontology.json` is the versioned ontology.** It defines the five operational entity types,
+required/allowed property names and types, permitted relationship endpoints, identity policy and
+construction semantics. `knowledge/ontology.py` enforces it and installs Neo4j uniqueness constraints
+and time-window indexes. `ingestion/adapters.py` defines the strict input contracts and their mappings.
+`IngestionSource` is an additional control-plane label for atomic ingestion checkpoints; it is never
+included in evidence or sent to the model.
+
+| Input | What establishes a relationship | What it does not establish |
+|---|---|---|
+| Full service catalog snapshot | Explicit `depends_on` declaration | Actual traffic or causality |
+| OTLP trace export | Cross-service CLIENT→SERVER or PRODUCER→CONSUMER parent/child span IDs in one trace | Unobserved dependencies or incident causes |
+| Deployment record | A release changed its named service | That release caused an error |
+| Structured error log | An error was observed on its named service | A dependency based on similar text |
+| Explicit incident reference in a log | The symptom belongs to a named incident | Automatic correlation from timing alone |
+| Human confirmation | A reviewed finding explains an incident | Permission for the model to confirm itself |
+
+These are human-defined domain rules. A new relationship type requires an ontology/code change,
+tests and migration; an LLM cannot silently extend the ontology. Source checkpoints retain the ontology
+version and refuse subsequent commits under a different version until explicitly migrated.
+
+Components use `(graph namespace, environment, service name)` as their canonical identity. Events use
+`(graph namespace, entity type, source ID, external event ID)`. Exact service naming is required across
+sources: aliases are not guessed. Authoritative catalog metadata outranks inferred component metadata
+from logs/traces; same-priority metadata uses the most recent observation. Relationships retain source
+ID, file/line reference, payload hash, construction method and applicable validity times. Nodes also
+retain first ingestion time. Trace samples are aggregated per source/service-pair/minute, preserving
+first and last validity bounds and bounded provenance samples.
+
+### Source contracts and replay
+
+Copy `examples/sources.example.json` and supply your own local exports. Paths are relative to the
+registry file. Each input line is a JSON object; these first adapters intentionally support explicit
+formats rather than attempting to interpret arbitrary text. Common examples:
+
+```json
+{"observed_at":"2026-10-23T10:00:00Z","services":[{"name":"api","type":"service","description":"Request handler","depends_on":["store"]},{"name":"store","type":"storage","description":"Storage","depends_on":[]}]}
+```
+
+```json
+{"id":"release-1","service":"api","timestamp":"2026-10-23T10:38:00Z","version":"1.2.0","description":"Changed connection pool configuration"}
+```
+
+```json
+{"id":"alert-1","service":"api","timestamp":"2026-10-23T10:42:00Z","summary":"Requests time out","severity":"SEV-1","status":"open"}
+```
+
+```json
+{"id":"log-1","service":"api","timestamp":"2026-10-23T10:41:00Z","severity":"ERROR","error_type":"REQUEST_TIMEOUT","message":"Connection acquisition timed out","incident_id":"alert-1","incident_source":"alert-export"}
+```
+
+The OTLP adapter reads one JSON `ExportTraceServiceRequest` envelope per line, with `resourceSpans`,
+`resource.attributes` including `service.name`, and `scopeSpans[].spans`. It supports numeric or enum
+span kinds, `traceId`, `spanId`, `parentSpanId` and `startTimeUnixNano`. The registry supplies the
+environment; a resource `deployment.environment.name`, when present, must agree. Missing parents
+produce a warning and no inferred edge. Joining spans across separate exports is not implemented;
+configure an exporter to emit complete traces or add a bounded span assembler before this adapter.
+The mapping follows [OpenTelemetry parent/child span semantics](https://opentelemetry.io/docs/specs/otel/trace/api/).
+
+The input contract is **append-only**. Newlines delimit committed source records. Graph changes and
+the byte cursor commit in one Neo4j transaction. Crash recovery resumes at that cursor; duplicate
+events use stable IDs and cannot create duplicate facts. Conflicting payloads for the same event ID
+are rejected. These initial event adapters are immutable records; mutable incident lifecycle updates
+need a versioned update adapter. Full catalog snapshots must arrive chronologically.
+
+Bad schema, unresolved endpoints, stale catalogs or transaction failures block that source without
+advancing its cursor; other sources continue. Import referenced incident sources before their logs,
+or let the watcher retry once those incidents arrive. The CLI reports blocked-source errors; the UI
+shows last successful commits, not an assurance that a source is healthy. Prefix/tail fingerprints
+detect truncation and common replacement errors, not arbitrary edits anywhere in a large file.
+Preserve rotated files and register a new path/source ID. Automatic rotation discovery, correction
+workflows and quarantine/replay administration are not implemented. Source configuration changes also
+require a new source ID. Rebuild from retained exports into a new `inputs-*` namespace when testing a
+new mapping, rather than altering the baseline graph.
+
+### Growth and processing cost
+
+Graph size, query work, visual graph size and model context are different budgets:
+
+- The worker processes bounded batches with persistent offsets; it does not reread the entire history.
+- Component identity indexes provide starting points. Composite `(namespace, component, timestamp)`
+  indexes filter deployments and symptoms using numeric UTC timestamps. A separate symptom-type/time
+  index supports memory matching. Live tests use `PROFILE` to check index usage.
+- Dependency retrieval uses bounded breadth-first expansion: depth 3, at most 16 dependencies per
+  component and 64 components total. It retains one discovered path per component, avoiding enumeration
+  of every possible path. Truncation is explicitly reported in the evidence and model limitations.
+- Each investigation returns at most 50 recent deployments and 100 recent symptoms. Historical matching
+  examines at most 8 current symptom types and 100 candidates per type before ranking 5 incidents.
+  Caps trade recall for predictable output size; truncated searches cannot establish absence.
+- Model requests have a 32 KB serialized evidence/schema guard, plus the existing bounded generation
+  and timeouts. Oversized evidence preserves the graph/UI and reports analysis unavailable. This byte
+  guard is not an exact token count or a guarantee that every model will fit the same context.
+- Depth and row caps do not make database work constant: Neo4j may still scan/sort many relationships
+  at a high-degree node. The induced evidence graph can also grow dense. Query timeouts and the model
+  guard fail safely; further graph pagination/aggregation remains necessary for very dense incidents.
+
+Neo4j documents both [composite index planning](https://neo4j.com/docs/cypher-manual/current/indexes/performance-indexes/using-indexes/)
+and the risk of [path-count growth in variable-length traversals](https://neo4j.com/docs/cypher-manual/current/patterns/variable-length-paths/).
+
+Measure actual retrieval with disposable generated data:
+
+```bash
+uv run python scripts/benchmark_graph.py --noise 10000
+```
+
+The final executed warm local run measured approximately 39 ms before and 38 ms after adding 10,000 old
+symptoms on the affected service; both returned the same four relevant components and no out-of-window
+symptoms. The variation is measurement/cache noise, not evidence that larger graphs are faster.
+A separate 100-dependency root returned 19 bounded components and explicitly reported truncation.
+This small generated benchmark does not establish production capacity or ingestion throughput.
+
+**Storage still grows without a retention policy.** INFO/DEBUG logs are excluded and trace relationships
+are bucketed, but accepted error events and catalog history are retained. There is no automatic deletion
+or archiver yet. Before sustained high-volume operation, define a hot evidence horizon, aggregate
+repeated symptoms into time buckets, archive raw exports on local disk, and pin confirmed findings and
+their supporting deployments/incidents. Compaction must retain evidence references and explicitly mark
+historical coverage gaps. Query limits protect investigations; they do not replace storage lifecycle
+management. No million-node or long-duration ingestion claim has been verified.
 
 ## Confirmed memory
 
@@ -171,12 +357,17 @@ The following checks passed on this 24 GB Apple Silicon Mac:
 - `scripts/preflight.py` reached Neo4j and Ollama, found both demo incidents, and obtained a real
   structured response from `qwen2.5:14b-instruct`.
 - `RUN_NEO4J_TESTS=1 RUN_OLLAMA_TESTS=1 uv run --offline pytest -q`, launched under the
-  localhost-only profile: **75 passed, no skips**. This includes real Cypher, Streamlit/PyVis checks
-  and a real local-model investigation after removing the connector deployment.
+  localhost-only profile: **101 passed, no skips**. This includes real Cypher, Streamlit/PyVis checks,
+  source construction, cursor atomicity, historical topology, and a real local-model investigation
+  after removing the connector deployment, plus confirmation in the constructed graph's namespace.
 - `uv run ruff check .`: passed.
 - Both real investigations completed through LangGraph and produced validated hypotheses. Both
   were also exercised in Chrome; the interactive graph, evidence, historical memory and node
   inspection rendered. Selecting or inspecting cached results did not repeat inference.
+- A separate investigation of the graph built by `ingest.py` completed with real local Ollama
+  analysis, both via CLI and in Chrome. Appending a catalog snapshot while the watcher was running
+  updated the graph without reseeding. A concurrent verification run once exceeded the model timeout;
+  sequential verification passed, and the timeout correctly preserved evidence without analysis.
 - A deliberately unavailable model produced the expected evidence-preserving fallback, without
   hypotheses or suspected-cause highlights.
 - Ollama and Streamlit ran under the macOS localhost-only profile. The network boundary check

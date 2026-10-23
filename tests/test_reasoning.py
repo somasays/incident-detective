@@ -13,6 +13,28 @@ def test_valid_analysis(valid_analysis, evidence):
     assert validate_analysis(valid_analysis, evidence).hypotheses[0].cause_entity_id == "deploy-014"
 
 
+def test_namespaced_evidence_ids_are_validated_as_complete_ids(valid_analysis, evidence):
+    replacements = {
+        key: key.split(":", 1)[0] + ":inputs-test:source:" + key.split(":", 1)[1]
+        for key in evidence["index"]
+        if not key.startswith("PATH:")
+    }
+    evidence["index"] = {
+        replacements.get(key, key): value for key, value in evidence["index"].items()
+    }
+    hypothesis = valid_analysis["hypotheses"][0]
+    hypothesis["supporting_evidence_ids"] = [
+        replacements.get(key, key) for key in hypothesis["supporting_evidence_ids"]
+    ]
+    assert validate_analysis(valid_analysis, evidence).hypotheses
+
+
+def test_oversized_evidence_falls_back_before_model_inference(evidence):
+    evidence["observed_symptoms"][0]["message"] = "x" * 40_000
+    with pytest.raises(AnalysisUnavailable, match="input budget"):
+        OllamaReasoner(client=object()).analyze(evidence)
+
+
 @pytest.mark.parametrize(
     "mutation",
     [

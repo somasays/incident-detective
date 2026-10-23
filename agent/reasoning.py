@@ -45,6 +45,9 @@ class InvestigationAnalysis(BaseModel):
 
 
 SYSTEM_PROMPT = """You investigate technical incidents using ONLY supplied graph evidence.
+Respect retrieval_notices: truncated topology or capped evidence is incomplete.
+Declared and observed dependencies have different provenance. Observed trace relationships
+show a communication dependency during their validity interval, not a confirmed causal link.
 Return concise JSON conforming to the schema. Rank up to 3 root-cause HYPOTHESES.
 If no hypothesis is supportable, return an empty hypotheses list and explain the gap.
 Use only eligible_cause_ids for cause_entity_id, or null when no entity is supported.
@@ -130,7 +133,7 @@ def validate_analysis(raw, evidence) -> InvestigationAnalysis:
             if not any(t == timestamp or t.startswith(timestamp + ":") for t in known_times):
                 raise ValueError("Analysis contains a timestamp not in evidence.")
     # Validate evidence references occurring in prose as well as structured citation lists.
-    for eid in re.findall(r"\b(?:DEPLOY|SYMPTOM|INCIDENT|FINDING):[\w-]+", text):
+    for eid in re.findall(r"\b(?:DEPLOY|SYMPTOM|INCIDENT|FINDING):[\w:%.-]+", text):
         if eid not in valid_ids:
             raise ValueError("Analysis prose cites a nonexistent evidence ID.")
     certainty_pattern = (
@@ -194,7 +197,6 @@ class OllamaReasoner:
         return {"model": self.settings.ollama_model, "structured_output": True}
 
     def analyze(self, evidence):
-        self.check_model()
         schema = InvestigationAnalysis.model_json_schema()
         # Enums improve small-model grounding; the independent validator still checks everything.
         properties = schema["$defs"]["Hypothesis"]["properties"]
@@ -210,17 +212,22 @@ class OllamaReasoner:
             "description": "Exact retrieved ID of the hypothesized entity; still unproven.",
         }
         schema["$defs"]["Hypothesis"]["required"].append("cause_entity_id")
+        payload = json.dumps(
+            {"evidence": model_evidence(evidence), "response_schema": schema}, sort_keys=True
+        )
+        # A byte budget is a conservative resource bound, not an exact tokenizer estimate.
+        # Keep all evidence in the UI; do not silently let Ollama truncate the model's input.
+        if len(payload.encode()) > 32_000:
+            raise AnalysisUnavailable(
+                "Retrieved evidence exceeds the 32 KB local-model input budget. "
+                "Narrow the incident scope or aggregate the source symptoms. Evidence is preserved."
+            )
+        self.check_model()
         messages = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {
                 "role": "user",
-                "content": json.dumps(
-                    {
-                        "evidence": model_evidence(evidence),
-                        "response_schema": schema,
-                    },
-                    sort_keys=True,
-                ),
+                "content": payload,
             },
         ]
         last_error = None

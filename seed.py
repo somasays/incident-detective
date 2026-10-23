@@ -5,17 +5,8 @@ import json
 from pathlib import Path
 
 from config import DEMO_ID
+from knowledge.ontology import LABELS, RELATIONSHIPS, ensure_schema, epoch_ms
 
-LABELS = {"Component", "Deployment", "Incident", "Symptom", "Finding"}
-RELATIONSHIPS = {
-    "DEPENDS_ON",
-    "CHANGED",
-    "AFFECTS",
-    "HAS_SYMPTOM",
-    "OBSERVED_ON",
-    "EXPLAINS",
-    "ATTRIBUTED_TO",
-}
 FIXTURE_PATH = Path(__file__).parent / "data" / "scenarios.json"
 
 
@@ -61,6 +52,16 @@ def _seed_transaction(tx, fixture, reset):
             for n in fixture["nodes"]
             if n["label"] == label
         ]
+        for row in rows:
+            if "timestamp" in row:
+                row["timestamp_ms"] = epoch_ms(row["timestamp"])
+            if label in {"Deployment", "Symptom"}:
+                relationship = "CHANGED" if label == "Deployment" else "OBSERVED_ON"
+                row["component_id"] = next(
+                    e["target"]
+                    for e in fixture["edges"]
+                    if e["source"] == row["id"] and e["type"] == relationship
+                )
         tx.run(
             f"UNWIND $rows AS row MERGE (n:{label} {{id: row.id}}) SET n += row",
             rows=rows,
@@ -79,11 +80,7 @@ def _seed_transaction(tx, fixture, reset):
 
 def seed(database, fixture=None, reset=False):
     fixture = fixture or load_fixture()
-    for label in sorted(LABELS):
-        database.write(
-            f"CREATE CONSTRAINT incident_detective_{label.lower()}_id IF NOT EXISTS "
-            f"FOR (n:{label}) REQUIRE n.id IS UNIQUE"
-        )
+    ensure_schema(database)
     database.write_transaction(_seed_transaction, fixture, reset)
     return {"nodes": len(fixture["nodes"]), "relationships": len(fixture["edges"])}
 

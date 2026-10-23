@@ -1,6 +1,7 @@
 """Each method is a LangGraph node returning a serializable state update."""
 
 from agent.reasoning import validate_analysis
+from knowledge.bounds import notices
 from knowledge.evidence import build_evidence, graph_entity_ids
 
 
@@ -52,6 +53,7 @@ class InvestigationNodes:
                 "traverse_dependencies",
                 dependency_paths=[list(p) for p in paths],
                 component_ids=component_ids,
+                traversal_truncated=any(r.get("truncated") for r in rows),
             )
         except Exception as exc:
             return stage(
@@ -68,7 +70,7 @@ class InvestigationNodes:
             symptoms = self.repository.symptoms(components, time)
             memories = self.repository.historical_incidents(state["incident_id"])
             ids = graph_entity_ids(state["incident"], components, deployments, symptoms, memories)
-            graph = self.repository.evidence_graph(ids)
+            graph = self.repository.evidence_graph(ids, state["incident"]["timestamp"])
             evidence = build_evidence(
                 state["incident"],
                 state["dependency_paths"],
@@ -77,6 +79,9 @@ class InvestigationNodes:
                 symptoms,
                 memories,
                 graph,
+            )
+            evidence["retrieval_notices"] = notices(
+                [{"truncated": state.get("traversal_truncated", False)}], deployments, symptoms
             )
             return stage(
                 state,
@@ -136,6 +141,7 @@ class InvestigationNodes:
             else [],
             limitations=[
                 *state["limitations"],
+                *state["evidence"].get("retrieval_notices", []),
                 "Hypotheses require verification; historical findings do not prove "
                 "a current cause.",
             ],

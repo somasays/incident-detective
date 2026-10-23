@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from agent.graph import build_investigator  # noqa: E402
 from agent.reasoning import OllamaReasoner  # noqa: E402
+from config import DEMO_ID  # noqa: E402
 from knowledge.db import Database  # noqa: E402
 from knowledge.queries import KnowledgeRepository  # noqa: E402
 from ui.graph_view import render_evidence_graph  # noqa: E402
@@ -47,7 +48,8 @@ def deny_nonlocal_sockets():
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--offline-audit", action="store_true")
-    parser.add_argument("--incident", choices=["INC-104", "INC-105"], action="append")
+    parser.add_argument("--incident", action="append")
+    parser.add_argument("--namespace", default=DEMO_ID)
     parser.add_argument("--output", type=Path, default=Path("artifacts"))
     args = parser.parse_args()
     if args.offline_audit:
@@ -56,8 +58,19 @@ def main():
     failures = []
     with Database() as db:
         db.wait_ready(attempts=3, delay=1)
-        graph = build_investigator(KnowledgeRepository(db), OllamaReasoner())
-        for incident_id in args.incident or ["INC-104", "INC-105"]:
+        repository = KnowledgeRepository(db, args.namespace)
+        graph = build_investigator(repository, OllamaReasoner())
+        incident_ids = args.incident or (
+            ["INC-104", "INC-105"]
+            if args.namespace == DEMO_ID
+            else [i["id"] for i in repository.list_incidents()]
+        )
+        if not incident_ids:
+            print("No incidents available in this graph namespace.")
+            return 1
+        for incident_id in incident_ids:
+            if "/" in incident_id or "\\" in incident_id or incident_id in {".", ".."}:
+                parser.error("--incident cannot contain filesystem path separators")
             result = {"incident_id": incident_id}
             for update in graph.stream(
                 result, config={"recursion_limit": 12}, stream_mode="updates"

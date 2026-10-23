@@ -20,6 +20,9 @@ def dt(value):
 
 
 class FixtureRepository:
+    def list_namespaces(self):
+        return ["incident-detective-v1"]
+
     """Test double, never used by the app. Derives results from fixture edges without Cypher."""
 
     def __init__(self, fixture):
@@ -125,7 +128,7 @@ class FixtureRepository:
         memories.sort(key=lambda m: len(m["shared_symptoms"]), reverse=True)
         return memories[:5]
 
-    def evidence_graph(self, ids):
+    def evidence_graph(self, ids, incident_time=None):
         return {
             "nodes": [self.nodes[id] for id in sorted(ids)],
             "edges": [e for e in self.edges if e["source"] in ids and e["target"] in ids],

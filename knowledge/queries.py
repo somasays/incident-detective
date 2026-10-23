@@ -1,12 +1,24 @@
 """Fixed parameterized Cypher. Model output never becomes a database query."""
 
+import json
+
 from config import DEMO_ID
+from knowledge.bounds import (
+    MAX_COMPONENTS,
+    MAX_DEPLOYMENTS,
+    MAX_DEPTH,
+    MAX_MEMORY_CANDIDATES,
+    MAX_MEMORY_TYPES,
+    MAX_NEIGHBORS,
+    MAX_SYMPTOMS,
+)
 
 LIST_INCIDENTS = """
 MATCH (i:Incident {demo_id: $demo_id})-[:AFFECTS]->(c:Component {demo_id: $demo_id})
 WHERE i.status = 'open'
 RETURN i{.*, affected_component: c.id, affected_name: c.name} AS incident
 ORDER BY i.id
+LIMIT 200
 """
 
 LOAD_INCIDENT = """
@@ -16,42 +28,54 @@ RETURN i{.*, affected_component: c.id, affected_name: c.name} AS incident
 """
 
 DEPENDENCIES = """
-MATCH (i:Incident {id: $incident_id, demo_id: $demo_id})
-      -[:AFFECTS]->(root:Component {demo_id: $demo_id})
-MATCH p=(root)-[:DEPENDS_ON*0..3]->(upstream:Component)
-WHERE all(n IN nodes(p) WHERE n.demo_id = $demo_id AND n:Component)
-RETURN DISTINCT [n IN nodes(p) | n.id] AS path, upstream.id AS component_id
-ORDER BY path
+UNWIND $frontier AS root_id
+MATCH (root:Component {id:root_id, demo_id:$demo_id})
+CALL (root) {
+  MATCH (root)-[r:DEPENDS_ON]->(next:Component {demo_id:$demo_id})
+  WHERE (r.valid_from_ms IS NULL OR r.valid_from_ms <= $at)
+    AND (r.valid_to_ms IS NULL OR $at < r.valid_to_ms)
+  RETURN DISTINCT next.id AS id ORDER BY id LIMIT $neighbor_limit
+}
+RETURN root.id AS source, collect(id) AS targets
+ORDER BY source
 """
 
 RECENT_DEPLOYMENTS = """
-MATCH (d:Deployment {demo_id: $demo_id})-[:CHANGED]->(c:Component {demo_id: $demo_id})
-WHERE c.id IN $component_ids
-  AND datetime(d.timestamp) <= datetime($incident_time)
-  AND datetime(d.timestamp) >= datetime($incident_time) - duration({minutes: 30})
+MATCH (d:Deployment {demo_id: $demo_id})
+WHERE d.component_id IN $component_ids AND d.timestamp_ms <= $at
+  AND d.timestamp_ms >= $since
+MATCH (d)-[:CHANGED]->(c:Component {demo_id:$demo_id})
+WHERE c.id = d.component_id
 RETURN d.id AS deployment_id, d.timestamp AS deployed_at, d.description AS description,
        d.version AS version, c.id AS component_id
 ORDER BY deployed_at DESC, deployment_id, component_id
+LIMIT $limit
 """
 
 RECENT_SYMPTOMS = """
-MATCH (s:Symptom {demo_id: $demo_id})-[:OBSERVED_ON]->(c:Component {demo_id: $demo_id})
-WHERE c.id IN $component_ids
-  AND datetime(s.timestamp) <= datetime($incident_time)
-  AND datetime(s.timestamp) >= datetime($incident_time) - duration({minutes: 30})
+MATCH (s:Symptom {demo_id: $demo_id})
+WHERE s.component_id IN $component_ids AND s.timestamp_ms <= $at
+  AND s.timestamp_ms >= $since
+MATCH (s)-[:OBSERVED_ON]->(c:Component {demo_id:$demo_id})
+WHERE c.id = s.component_id
 RETURN s.id AS symptom_id, s.timestamp AS observed_at, s.type AS symptom_type,
        s.message AS message, c.id AS component_id
 ORDER BY observed_at, symptom_id, component_id
+LIMIT $limit
 """
 
 HISTORICAL_INCIDENTS = """
 MATCH (current:Incident {id: $incident_id, demo_id: $demo_id})
       -[:HAS_SYMPTOM]->(s:Symptom {demo_id: $demo_id})
-MATCH (past:Incident {demo_id: $demo_id})
-      -[:HAS_SYMPTOM]->(old:Symptom {demo_id: $demo_id})
-WHERE past.id <> current.id AND old.type = s.type
-  AND datetime(past.timestamp) < datetime(current.timestamp)
-WITH current, past, collect(DISTINCT s.type) AS shared_symptoms
+WITH DISTINCT current, s.type AS symptom_type ORDER BY symptom_type LIMIT $type_limit
+CALL (current, symptom_type) {
+  MATCH (old:Symptom {demo_id:$demo_id, type:symptom_type})
+  WHERE old.timestamp_ms < current.timestamp_ms
+  MATCH (past:Incident {demo_id:$demo_id})-[:HAS_SYMPTOM]->(old)
+  WHERE past.id <> current.id AND past.timestamp_ms < current.timestamp_ms
+  RETURN past ORDER BY past.timestamp_ms DESC, past.id LIMIT $candidate_limit
+}
+WITH current, past, collect(DISTINCT symptom_type) AS shared_symptoms
 ORDER BY size(shared_symptoms) DESC, past.timestamp DESC, past.id
 LIMIT 5
 OPTIONAL MATCH (f:Finding {demo_id: $demo_id, confirmed: true})-[:EXPLAINS]->(past)
@@ -64,44 +88,133 @@ ORDER BY size(shared_symptoms) DESC, incident.timestamp DESC, incident.id, findi
 """
 
 EVIDENCE_GRAPH = """
-MATCH (n {demo_id: $demo_id}) WHERE n.id IN $entity_ids
+UNWIND $entity_ids AS entity_id
+CALL (entity_id) {
+  MATCH (n:Component {id:entity_id,demo_id:$demo_id}) RETURN n
+  UNION
+  MATCH (n:Deployment {id:entity_id,demo_id:$demo_id}) RETURN n
+  UNION
+  MATCH (n:Incident {id:entity_id,demo_id:$demo_id}) RETURN n
+  UNION
+  MATCH (n:Symptom {id:entity_id,demo_id:$demo_id}) RETURN n
+  UNION
+  MATCH (n:Finding {id:entity_id,demo_id:$demo_id}) RETURN n
+}
 OPTIONAL MATCH (n)-[r:DEPENDS_ON|CHANGED|AFFECTS|HAS_SYMPTOM|OBSERVED_ON|EXPLAINS|ATTRIBUTED_TO]
                ->(m {demo_id: $demo_id})
 WHERE m.id IN $entity_ids
+  AND (type(r) <> 'DEPENDS_ON' OR $at IS NULL OR
+      ((r.valid_from_ms IS NULL OR r.valid_from_ms <= $at) AND
+       (r.valid_to_ms IS NULL OR $at < r.valid_to_ms)))
 RETURN n{.*, label: head(labels(n))} AS node,
        collect(DISTINCT CASE WHEN r IS NOT NULL
-         THEN {source: n.id, target: m.id, type: type(r)} ELSE null END) AS edges
+         THEN {source: n.id, target: m.id, type: type(r), properties: properties(r)}
+         ELSE null END) AS edges
 ORDER BY node.id
 """
 
 
 class KnowledgeRepository:
-    def __init__(self, database):
+    def __init__(self, database, namespace=None):
         self.database = database
+        self.namespace = namespace or DEMO_ID
 
     def _read(self, query, **params):
-        return self.database.read(query, demo_id=DEMO_ID, **params)
+        return self.database.read(query, demo_id=self.namespace, **params)
 
     def list_incidents(self):
         return [r["incident"] for r in self._read(LIST_INCIDENTS)]
+
+    def list_namespaces(self):
+        return [
+            DEMO_ID,
+            *[
+                r["namespace"]
+                for r in self.database.read(
+                    "MATCH (s:IngestionSource) WHERE s.demo_id STARTS WITH 'inputs-' "
+                    "RETURN DISTINCT s.demo_id AS namespace ORDER BY namespace LIMIT 32"
+                )
+            ],
+        ]
+
+    def ingestion_status(self):
+        return self._read(
+            "MATCH (s:IngestionSource {demo_id:$demo_id}) "
+            "RETURN s.source_id AS source, s.adapter AS adapter, s.path AS path, "
+            "s.offset AS committed_bytes, s.records AS records, s.updated_at AS last_commit "
+            "ORDER BY source LIMIT 32"
+        )
 
     def get_incident(self, incident_id):
         rows = self._read(LOAD_INCIDENT, incident_id=incident_id)
         return rows[0]["incident"] if rows else None
 
     def dependencies(self, incident_id):
-        return self._read(DEPENDENCIES, incident_id=incident_id)
+        from knowledge.ontology import epoch_ms
+
+        incident = self.get_incident(incident_id)
+        if not incident:
+            return []
+        root = incident["affected_component"]
+        paths, frontier, truncated = {root: [root]}, [root], False
+        for _ in range(MAX_DEPTH):
+            if not frontier:
+                break
+            next_frontier = []
+            rows = self._read(
+                DEPENDENCIES,
+                frontier=frontier,
+                at=epoch_ms(incident["timestamp"]),
+                neighbor_limit=MAX_NEIGHBORS + 1,
+            )
+            for row in rows:
+                targets = row["targets"]
+                truncated |= len(targets) > MAX_NEIGHBORS
+                for target in targets[:MAX_NEIGHBORS]:
+                    if target in paths:
+                        continue
+                    if len(paths) >= MAX_COMPONENTS:
+                        truncated = True
+                        continue
+                    paths[target] = paths[row["source"]] + [target]
+                    next_frontier.append(target)
+            frontier = next_frontier
+        return [
+            {"path": path, "component_id": component, "truncated": truncated}
+            for component, path in sorted(paths.items())
+        ]
 
     def recent_deployments(self, component_ids, incident_time):
+        from knowledge.ontology import epoch_ms
+
+        at = epoch_ms(incident_time)
         return self._read(
-            RECENT_DEPLOYMENTS, component_ids=component_ids, incident_time=incident_time
+            RECENT_DEPLOYMENTS,
+            component_ids=component_ids,
+            at=at,
+            since=at - 30 * 60_000,
+            limit=MAX_DEPLOYMENTS,
         )
 
     def symptoms(self, component_ids, incident_time):
-        return self._read(RECENT_SYMPTOMS, component_ids=component_ids, incident_time=incident_time)
+        from knowledge.ontology import epoch_ms
+
+        at = epoch_ms(incident_time)
+        return self._read(
+            RECENT_SYMPTOMS,
+            component_ids=component_ids,
+            at=at,
+            since=at - 30 * 60_000,
+            limit=MAX_SYMPTOMS,
+        )
 
     def historical_incidents(self, incident_id):
-        rows = self._read(HISTORICAL_INCIDENTS, incident_id=incident_id)
+        rows = self._read(
+            HISTORICAL_INCIDENTS,
+            incident_id=incident_id,
+            type_limit=MAX_MEMORY_TYPES,
+            candidate_limit=MAX_MEMORY_CANDIDATES,
+        )
         memories = {}
         for row in rows:
             past = row["incident"]
@@ -128,7 +241,23 @@ class KnowledgeRepository:
         # Cypher already ranks by shared type count, recency and ID; preserve this order.
         return list(memories.values())
 
-    def evidence_graph(self, entity_ids):
-        rows = self._read(EVIDENCE_GRAPH, entity_ids=sorted(set(entity_ids)))
-        edges = {(e["source"], e["type"], e["target"]): e for r in rows for e in r["edges"] if e}
+    def evidence_graph(self, entity_ids, incident_time=None):
+        from knowledge.ontology import epoch_ms
+
+        rows = self._read(
+            EVIDENCE_GRAPH,
+            entity_ids=sorted(set(entity_ids)),
+            at=epoch_ms(incident_time) if incident_time else None,
+        )
+        edges = {
+            (
+                e["source"],
+                e["type"],
+                e["target"],
+                json.dumps(e.get("properties", {}), sort_keys=True),
+            ): e
+            for r in rows
+            for e in r["edges"]
+            if e
+        }
         return {"nodes": [r["node"] for r in rows], "edges": [edges[k] for k in sorted(edges)]}
