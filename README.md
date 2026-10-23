@@ -1,11 +1,141 @@
 # Incident Detective
 
-A fully local incident investigation dashboard. LangGraph retrieves dependency paths, changes,
-symptoms and confirmed historical findings from Neo4j, then asks a local Ollama model for bounded,
-evidence-grounded hypotheses. Streamlit presents the evidence graph, ranked explanations, missing
-evidence and the next verification action. All operational components and events are synthetic.
+A temporal SRE investigation lab. A bounded LangGraph loop forms hypotheses, chooses typed checks
+against a local Neo4j knowledge graph, evaluates the returned evidence and produces a diagnosis
+package. All operational components, code and events are synthetic. The model provider is explicit:
+Ollama for offline inference, or the configured OpenAI-compatible endpoint. The latter sends synthetic
+evidence to that endpoint and requires internet access. There is no automatic provider fallback.
 
-## Local setup — macOS Apple Silicon
+## Temporal SRE graph and question lab (ontology v2)
+
+The approved model is `knowledge/ontology.v2.json`. It is separate from the original five-label
+fixture and source-ingestion namespaces. It includes systems, components, code, commits and people,
+deployments, operational changes, observations, incidents/findings, workload/cluster/storage context,
+and state history. No Kubernetes cluster or real-time ingestion pipeline is required.
+
+Populate the realistic, prepared dataset in local Neo4j:
+
+```bash
+uv run python temporal_demo.py seed
+```
+
+This idempotently imports **152 nodes and 204 relationships** in `sre-temporal-v2`, validates source
+records against the approved property/endpoint definitions, and uses native UTC temporal properties.
+It does not delete existing graph data. The exact fixture is `data/temporal_scenarios.json`; evidence
+references resolve to JSON pointers in that file. Code and infrastructure are synthetic.
+
+The prepared clock is **2026-10-23 10:05 Europe/Berlin (08:05 UTC)**. "Now" uses that displayed
+reference time, not the host clock. "3AM today" resolves to **2026-10-23 01:00 UTC**.
+Payments has recovered by the reference time; billing errors and profile instability are also modeled.
+The historical Payments case includes a storage allocation change (3000 → 300 → 3000 IOPS), a later
+workload cluster move, a database patch, a Payments release, an undeployed commit, exact log/error and
+alert records, trace timings, and baseline/incident/recovery metrics.
+
+Run evidence retrieval first, or invoke the hypothesis loop using the provider in `.env`:
+
+```bash
+uv run python temporal_demo.py ask "What was wrong with payments API at 3AM today?" --evidence-only
+uv run python temporal_demo.py ask "What was wrong with payments API at 3AM today?" --output artifacts/payments-3am
+uv run python temporal_demo.py ask "What was wrong with payments API at 3AM today?" --mode known_then --output artifacts/payments-replay
+uv run python temporal_demo.py ask "Why is payments API slow now?" --output artifacts/payments-now
+uv run python temporal_demo.py ask "Why does billing API throw errors?" --output artifacts/billing
+uv run python temporal_demo.py ask "Why is profile service unstable?" --output artifacts/profile
+```
+
+Use `--at 2026-10-23T03:00:00+02:00` to override time explicitly. Name/alias resolution uses actual
+graph entities; ambiguous or unknown targets request clarification. General natural-language time
+parsing is not implemented: AM/PM times and explicit ISO overrides are supported.
+
+Each execution uses a real LangGraph StateGraph with conditional routing. The model chooses typed
+tools; fixed parameterized Cypher executes through the official local Neo4j MCP server in read-only
+mode. `--transport bolt` is an explicit driver alternative. No model output becomes executable Cypher.
+Knowledge-time filters distinguish historical replay from later retrospective analysis.
+
+```text
+resolve question/time → immediate topology → target observations → prior matching incidents
+  → form hypotheses → choose check → execute check → assess hypotheses ─┐
+                          ↑                                          │
+                          └───────── continue / revise ───────────────┘
+                          └───────── stop → diagnosis → validate → finalize
+```
+
+The model can call `expand_dependencies`, `inspect_observations`, `inspect_state_changes` and
+`inspect_running_code`. It sees the check history and may support, refute or leave a hypothesis
+unresolved, add another within the budget, select another check, or stop. The initial neighborhood
+contains one application dependency hop; further discovery is selected by the model. Previous
+incidents are matched by shared observation patterns and topology overlap, then ranked by overlap
+and recency. Matching history suggests explanations; it does not confirm the current cause.
+
+Hard limits: **3 hypotheses, 8 checks, 10 model calls including retries, 3 dependency hops and 180
+seconds**. Each invalid decision has at most one retry. Duplicate checks cannot execute again.
+Budget exhaustion returns an incomplete package with retrieved evidence. Model or tool failure
+preserves that evidence and reports unavailable analysis; no successful diagnosis is manufactured.
+A proposed stop immediately after discovering new resources gets at most one model review of query
+coverage, within the same call/time budgets. This can select another typed check; it does not assign
+diagnostic meaning to error names or automatically declare a cause.
+
+Diagnostic policy is in [`agent/skills/temporal-diagnosis/SKILL.md`](agent/skills/temporal-diagnosis/SKILL.md).
+The model interprets record contents and relationships. There is no error-name allowlist that decides
+which events establish a mechanism. Retrieved observation and configuration properties reach the
+model without a scenario-specific field filter. Deterministic validation checks schema, citations,
+time-scoped provenance, metric references and evidence ownership; **it cannot prove causal correctness**.
+
+Current live checks with GPT-5 mini identified the prepared Profile cache-limit fault and Billing
+adapter schema change. The deeper Payments case still sometimes stops at upstream propagation
+instead of establishing the storage-allocation trigger. That case remains a diagnostic-quality gap;
+a structurally valid `complete` result is not sufficient evidence that its root cause is correct.
+
+Every output directory contains `investigation.json` and a self-contained `report.html`, including
+measured values, exact windows/sample counts, deterministic differences/ratios, source messages,
+trace samples, state history, changes, code/release provenance, an interactive graph and query/stage
+records. It also retains `hypothesisTests`, executed checks, assessment history, next-action reasons,
+budget usage and stop reasons for the deferred hypothesis-tree UI. The baseline is explicitly a
+**configured prior-window reference**, not a learned normal
+range, SLO, or separate baseline profile. Measurement records are stored as `Observation` nodes.
+
+Streamlit opens **Temporal SRE lab**. It includes question-driven diagnosis, ontology v2
+inspection and searchable stored graph history. Results remain in session state on reruns; another
+model call requires the Investigate button. The earlier prototype is retained in source and at
+`dummy_data`; only the temporal lab is exposed in the current app. Live activity displays each
+hypothesis, its selected checks, returned records, assessments and the next action. The completed
+tree remains available alongside the diagnosis and evidence graph without another model request.
+Live checks render outside the collapsible status header. Completed check results remain expanded,
+and the previous diagnosis package stays mounted until the next investigation finishes.
+
+To use the official OpenAI endpoint, edit the existing ignored `.env` locally:
+
+```dotenv
+LLM_PROVIDER=openai
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-5-mini
+OPENAI_API_KEY=<your OpenAI API key>
+LANGSMITH_TRACING=false
+```
+
+GPT-5 mini uses `max_completion_tokens=4096`, `reasoning_effort=low`, and no custom temperature,
+with the same bounded loop and JSON schema. See the [Chat Completions API parameters](https://developers.openai.com/api/reference/resources/chat/subresources/completions/methods/create).
+The workshop URL `https://graphacademy.neo4j.com/api/llm/v1` can also be configured, using a model
+allowed by that workshop; it rejected GPT-5 mini during verification. An `inactive` response from
+that proxy requires reactivating the lesson. Keys remain server-side and are never written into
+reports. For fully offline inference use
+`LLM_PROVIDER=ollama` and an already downloaded `OLLAMA_MODEL`; install dependencies and the Docker
+image beforehand. MCP telemetry and LangSmith tracing are disabled. Compose copies bundled APOC from
+the Neo4j image locally, with no plugin download on startup.
+
+```bash
+uv run streamlit run app.py
+RUN_NEO4J_TESTS=1 uv run pytest -q tests/test_temporal.py
+uv run pytest -q -m 'not integration and not llm'
+RUN_NEO4J_TESTS=1 uv run pytest -q tests/test_diagnostic_tools.py tests/test_temporal.py
+uv run python scripts/verify_temporal.py --with-model --output artifacts/loop-validation
+```
+
+The temporal tests exercise historical versus current state/placement, late-arriving evidence,
+known-then replay, numeric/error grounding, actual running code versus undeployed commits, idempotent
+seeding and a dependency-edge ablation rolled back in its transaction. Retrieval/output caps and
+timeouts bound this prototype; production ingestion, retention and capacity testing remain deferred.
+
+## Initial local setup and earlier prototype
 
 Prerequisites: Docker with a running local engine, Ollama, and uv. Python 3.11–3.13 is supported.
 Initial package, Docker image and model downloads require internet access. Subsequent runtime uses
@@ -520,3 +650,21 @@ uv run python ingest.py --sources artifacts/live-demo/sources.json --watch
 All example inputs are synthetic. This walkthrough demonstrates parsing, ontology enforcement,
 identity resolution, incremental ingestion, provenance and time-aware retrieval. It does not claim
 that a production environment has been discovered automatically.
+
+## Hypothesis validation tree
+
+The SRE sees each provisional hypothesis with its own validation branch:
+
+```text
+Hypothesis: <possible cause and mechanism>
+  Validating
+    Step 1: <specific evidence check>
+      Result: <observed values, evidence references, implication>
+    Step n: <next check>
+      Result: <what was learned>
+  Outcome: supported / refuted / unresolved
+```
+
+Agent events should retain the hypothesis ID, check, result, evidence IDs and next action.
+The Streamlit activity view renders this tree from actual LangGraph updates and retains it after
+completion. Source records and executed queries remain inspectable.

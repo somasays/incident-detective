@@ -1,0 +1,3987 @@
+{
+  "schema": "https://neo4j.com/docs/ontology-graph-spec/1.0.0/schema.json",
+  "id": "incident-detective-sre",
+  "version": "2.0.0",
+  "name": "Incident Detective SRE ontology proposal",
+  "description": "Review draft for current and historical SRE diagnostics: stable identities, retained state snapshots, temporal dependencies and Kubernetes workload/cluster context, source/operational changes, observations and confirmed findings. No live ingestion implementation.",
+  "nodes": {
+    "system": {
+      "label": "System",
+      "description": "A logical product/domain, such as payments, billing or profiles.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "description": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "environment": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "aliases": {
+          "type": "LIST<STRING>",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Observation time of the derived latest display cache. Historical state is retained in StateSnapshot nodes."
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "updatedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Last refresh time of the current display cache, not the effective time of a historical fact."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + environment + declared system name",
+          "statePolicy": "Stable resource identity with retained StateSnapshot assertions for configuration/status. Optional current properties/LATEST_STATE links are derived display caches; historical retrieval uses valid time and knowledge time."
+        }
+      }
+    },
+    "component": {
+      "label": "Component",
+      "description": "An application service or dependency such as a database, cache or queue. Cross-system dependencies are traversable; physical Kubernetes placement is modeled separately.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "kind": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "description": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "environment": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "aliases": {
+          "type": "LIST<STRING>",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Observation time of the derived latest display cache. Historical state is retained in StateSnapshot nodes."
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "updatedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Last refresh time of the current display cache, not the effective time of a historical fact."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + environment + declared component name",
+          "statePolicy": "Stable resource identity with retained StateSnapshot assertions for configuration/status. Optional current properties/LATEST_STATE links are derived display caches; historical retrieval uses valid time and knowledge time."
+        }
+      }
+    },
+    "codeArtifact": {
+      "label": "CodeArtifact",
+      "description": "A versioned file, function or configuration excerpt with inspectable source content.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "repository": {
+          "type": "STRING"
+        },
+        "revision": {
+          "type": "STRING"
+        },
+        "path": {
+          "type": "STRING"
+        },
+        "kind": {
+          "type": "STRING"
+        },
+        "symbol": {
+          "type": "STRING"
+        },
+        "language": {
+          "type": "STRING"
+        },
+        "lineStart": {
+          "type": "INTEGER"
+        },
+        "lineEnd": {
+          "type": "INTEGER"
+        },
+        "content": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + repository + revision + path + symbol/line range"
+        }
+      }
+    },
+    "deployment": {
+      "label": "Deployment",
+      "description": "A release or configuration rollout affecting a component. Inclusion of code must be explicit in the release export.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "timestamp": {
+          "type": "ZONED DATETIME"
+        },
+        "version": {
+          "type": "STRING"
+        },
+        "revision": {
+          "type": "STRING"
+        },
+        "description": {
+          "type": "STRING"
+        },
+        "environment": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + deployment source + external event ID"
+        }
+      }
+    },
+    "observation": {
+      "label": "Observation",
+      "description": "An observed log/error event, metric window or trace summary. Healthy observations and baselines are allowed.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "kind": {
+          "type": "STRING"
+        },
+        "timestamp": {
+          "type": "ZONED DATETIME"
+        },
+        "windowStart": {
+          "type": "ZONED DATETIME"
+        },
+        "windowEnd": {
+          "type": "ZONED DATETIME"
+        },
+        "type": {
+          "type": "STRING"
+        },
+        "message": {
+          "type": "STRING"
+        },
+        "severity": {
+          "type": "STRING"
+        },
+        "value": {
+          "type": "FLOAT"
+        },
+        "unit": {
+          "type": "STRING"
+        },
+        "aggregation": {
+          "type": "STRING"
+        },
+        "sampleCount": {
+          "type": "INTEGER"
+        },
+        "traceId": {
+          "type": "STRING"
+        },
+        "spanId": {
+          "type": "STRING"
+        },
+        "fingerprint": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        },
+        "metricName": {
+          "type": "STRING",
+          "description": "Exact source metric name; comparisons must use compatible definitions and dimensions."
+        },
+        "dimensions": {
+          "type": "LIST<STRING>",
+          "description": "Canonical key=value dimensions such as operation, route or region. Each key is unique; do not combine different populations implicitly."
+        },
+        "errorType": {
+          "type": "STRING",
+          "description": "Source error category, distinct from the observation kind."
+        },
+        "eventCount": {
+          "type": "INTEGER",
+          "description": "Source-backed count of matching events over the stated window; not the number of retrieved samples."
+        },
+        "stackExcerpt": {
+          "type": "STRING",
+          "description": "Bounded exact source stack excerpt, when supplied."
+        },
+        "alertRule": {
+          "type": "STRING",
+          "description": "Identifier or expression of the alert rule that actually fired."
+        },
+        "threshold": {
+          "type": "FLOAT",
+          "description": "Numeric alert threshold, only when supplied by the source."
+        },
+        "thresholdUnit": {
+          "type": "STRING",
+          "description": "Unit for threshold comparison; compatible with the observed value unit."
+        },
+        "eventType": {
+          "type": "STRING",
+          "description": "Explicit source lifecycle event type, including deployment or incident lifecycle transitions."
+        },
+        "previousStatus": {
+          "type": "STRING",
+          "description": "Previous source-reported status, if included in a lifecycle event."
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Source-reported status at this observation/event time."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + source + external event ID, or a deterministic source/window fingerprint",
+          "validation": "Kind-specific contracts: metric values require units, aggregation and a window; trace summaries retain trace/span identity. No observations are fabricated from the SRE question."
+        }
+      }
+    },
+    "incident": {
+      "label": "Incident",
+      "description": "A recorded current or historical incident with a time range and affected system/components.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "timestamp": {
+          "type": "ZONED DATETIME"
+        },
+        "resolvedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "summary": {
+          "type": "STRING"
+        },
+        "severity": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + incident source + external incident ID"
+        }
+      }
+    },
+    "finding": {
+      "label": "Finding",
+      "description": "A verified conclusion from a historical or current investigation. Model hypotheses remain unconfirmed investigation output.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "conclusion": {
+          "type": "STRING"
+        },
+        "confirmed": {
+          "type": "BOOLEAN"
+        },
+        "confirmedBy": {
+          "type": "STRING"
+        },
+        "createdAt": {
+          "type": "ZONED DATETIME"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        },
+        "confirmedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When a human/source actually confirmed the finding; distinct from report creation and KG recording time."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "namespace + incident + attributed entity + normalized conclusion"
+        }
+      }
+    },
+    "person": {
+      "label": "Person",
+      "description": "A recorded code author, committer or operational actor; provenance does not imply responsibility for an incident.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING"
+        },
+        "identityProvider": {
+          "type": "STRING"
+        },
+        "externalId": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + identity provider + external actor ID"
+        }
+      }
+    },
+    "commit": {
+      "label": "Commit",
+      "description": "An immutable Git commit. Existence in Git does not establish deployment.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "repository": {
+          "type": "STRING"
+        },
+        "sha": {
+          "type": "STRING"
+        },
+        "timestamp": {
+          "type": "ZONED DATETIME"
+        },
+        "message": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        },
+        "authoredAt": {
+          "type": "ZONED DATETIME"
+        },
+        "committedAt": {
+          "type": "ZONED DATETIME"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + repository identity + full commit SHA"
+        }
+      }
+    },
+    "change": {
+      "label": "Change",
+      "description": "An inspectable code/configuration delta or operational change such as a database patch or storage allocation change. Applied state requires explicit event evidence.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "kind": {
+          "type": "STRING"
+        },
+        "timestamp": {
+          "type": "ZONED DATETIME"
+        },
+        "description": {
+          "type": "STRING"
+        },
+        "beforeValue": {
+          "type": "STRING"
+        },
+        "afterValue": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING"
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + source + external change/event ID"
+        }
+      }
+    },
+    "k8sCluster": {
+      "label": "K8sCluster",
+      "description": "A Kubernetes cluster boundary. Cluster observations do not automatically apply to all member workloads.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "environment": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "clusterId": {
+          "type": "STRING"
+        },
+        "region": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Observation time of the derived latest display cache. Historical state is retained in StateSnapshot nodes."
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "updatedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Last refresh time of the current display cache, not the effective time of a historical fact."
+        },
+        "kubernetesVersion": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + stable source-assigned cluster ID",
+          "statePolicy": "Stable resource identity with retained StateSnapshot assertions for configuration/status. Optional current properties/LATEST_STATE links are derived display caches; historical retrieval uses valid time and knowledge time."
+        }
+      }
+    },
+    "k8sWorkload": {
+      "label": "K8sWorkload",
+      "description": "A Kubernetes workload controller, such as a Deployment or StatefulSet; distinct from a release Deployment event.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "kind": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "clusterId": {
+          "type": "STRING"
+        },
+        "kubernetesNamespace": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "uid": {
+          "type": "STRING"
+        },
+        "createdAt": {
+          "type": "ZONED DATETIME",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "deletedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "imageDigest": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "revision": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "desiredReplicas": {
+          "type": "INTEGER",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Observation time of the derived latest display cache. Historical state is retained in StateSnapshot nodes."
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "updatedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Last refresh time of the current display cache, not the effective time of a historical fact."
+        },
+        "readyReplicas": {
+          "type": "INTEGER",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "availableReplicas": {
+          "type": "INTEGER",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "rolloutStatus": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + cluster ID + Kubernetes object UID",
+          "statePolicy": "Stable resource identity with retained StateSnapshot assertions for configuration/status. Optional current properties/LATEST_STATE links are derived display caches; historical retrieval uses valid time and knowledge time."
+        }
+      }
+    },
+    "storageVolume": {
+      "label": "StorageVolume",
+      "description": "An identified persistent storage resource used by a database/component or workload. Provisioned storage settings are retained through StateSnapshot history; no storage control-plane graph is required.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "environment": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "backendId": {
+          "type": "STRING"
+        },
+        "storageClass": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "provisionedIops": {
+          "type": "INTEGER",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "capacityBytes": {
+          "type": "INTEGER",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "datasetId": {
+          "type": "STRING"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Observation time of the derived latest display cache. Historical state is retained in StateSnapshot nodes."
+        },
+        "ingestedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "ontologyVersion": {
+          "type": "STRING"
+        },
+        "status": {
+          "type": "STRING",
+          "description": "Optional derived latest-state display cache. Historical diagnosis must read the corresponding StateSnapshot, not this value."
+        },
+        "updatedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Last refresh time of the current display cache, not the effective time of a historical fact."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "must_exist": true,
+          "description": "Time this assertion version became available to the KG; separate from effective/observation time and source event time."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in knowledge time, when a correction supersedes it. Historical evidence remains retained."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + storage source + backend volume ID",
+          "statePolicy": "Stable resource identity with retained StateSnapshot assertions for configuration/status. Optional current properties/LATEST_STATE links are derived display caches; historical retrieval uses valid time and knowledge time."
+        }
+      }
+    },
+    "stateSnapshot": {
+      "label": "StateSnapshot",
+      "description": "A retained, source-backed assertion of resource configuration or status over an effective interval, with separate KG knowledge time. State values are never overwritten by newer states.",
+      "properties": {
+        "id": {
+          "type": "STRING",
+          "unique": true,
+          "must_exist": true
+        },
+        "datasetId": {
+          "type": "STRING",
+          "must_exist": true
+        },
+        "stateKey": {
+          "type": "STRING",
+          "description": "Logical state assertion identity, retained across corrected assertion versions.",
+          "must_exist": true
+        },
+        "resourceKind": {
+          "type": "STRING",
+          "one_of": [
+            "System",
+            "Component",
+            "K8sWorkload",
+            "K8sCluster",
+            "StorageVolume"
+          ],
+          "must_exist": true
+        },
+        "facet": {
+          "type": "STRING",
+          "one_of": [
+            "configuration",
+            "status"
+          ],
+          "must_exist": true
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive source-supported start of the state in the represented system.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of real-world validity; absent means no end is yet known, not guaranteed continued validity."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive time this assertion version became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive end of this assertion version in KG knowledge time; absence means it has not been superseded."
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source actually observed the state.",
+          "must_exist": true
+        },
+        "sourceId": {
+          "type": "STRING",
+          "must_exist": true
+        },
+        "sourceRef": {
+          "type": "STRING",
+          "must_exist": true
+        },
+        "recordHash": {
+          "type": "STRING",
+          "must_exist": true
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ],
+          "must_exist": true
+        },
+        "name": {
+          "type": "STRING"
+        },
+        "description": {
+          "type": "STRING"
+        },
+        "environment": {
+          "type": "STRING"
+        },
+        "aliases": {
+          "type": "LIST<STRING>"
+        },
+        "status": {
+          "type": "STRING"
+        },
+        "kind": {
+          "type": "STRING"
+        },
+        "kubernetesNamespace": {
+          "type": "STRING"
+        },
+        "createdAt": {
+          "type": "ZONED DATETIME"
+        },
+        "deletedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "imageDigest": {
+          "type": "STRING"
+        },
+        "revision": {
+          "type": "STRING"
+        },
+        "desiredReplicas": {
+          "type": "INTEGER"
+        },
+        "readyReplicas": {
+          "type": "INTEGER"
+        },
+        "availableReplicas": {
+          "type": "INTEGER"
+        },
+        "rolloutStatus": {
+          "type": "STRING"
+        },
+        "region": {
+          "type": "STRING"
+        },
+        "kubernetesVersion": {
+          "type": "STRING"
+        },
+        "storageClass": {
+          "type": "STRING"
+        },
+        "provisionedIops": {
+          "type": "INTEGER"
+        },
+        "capacityBytes": {
+          "type": "INTEGER"
+        },
+        "maxClients": {
+          "type": "INTEGER",
+          "description": "Source-observed cache client limit."
+        }
+      },
+      "extensions": {
+        "custom": {
+          "identity": "dataset + stable resource ID + facet + source + stateKey + assertion revision/hash",
+          "validation": "Validate properties against resourceKind and facet in Python. Valid/knowledge intervals are half-open [start,end), timestamps are UTC, and bounds must be ordered. No hidden generic state JSON is required.",
+          "revisionPolicy": "A changed state creates a new snapshot. If discovering a new end time or correcting a previous assertion would change an existing payload, retain the previous assertion, close only its supersededAt bookkeeping field, and append the revised assertion with a new recordedAt. No historical assertion values or topology are destructively replaced.",
+          "coverage": "Sparse snapshots do not prove uninterrupted state. Carry timeBasis, observation timestamps and explicit missing/stale coverage; do not backdate an observed snapshot without an effective-time source."
+        }
+      }
+    }
+  },
+  "relationships": {
+    "component_part_of_system": {
+      "type": "PART_OF",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "system"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "component_depends_on_component": {
+      "type": "DEPENDS_ON",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "component_implemented_by_codeArtifact": {
+      "type": "IMPLEMENTED_BY",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "codeArtifact"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "deployment_changed_component": {
+      "type": "CHANGED",
+      "from": {
+        "node": "deployment"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "deployment_changed_k8sWorkload": {
+      "type": "CHANGED",
+      "from": {
+        "node": "deployment"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "deployment_includes_codeArtifact": {
+      "type": "INCLUDES",
+      "from": {
+        "node": "deployment"
+      },
+      "to": {
+        "node": "codeArtifact"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "deployment_includes_commit": {
+      "type": "INCLUDES",
+      "from": {
+        "node": "deployment"
+      },
+      "to": {
+        "node": "commit"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_component": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_k8sWorkload": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_k8sCluster": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "k8sCluster"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_storageVolume": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_affects_system": {
+      "type": "AFFECTS",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "system"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_affects_component": {
+      "type": "AFFECTS",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_affects_k8sWorkload": {
+      "type": "AFFECTS",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_affects_k8sCluster": {
+      "type": "AFFECTS",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "k8sCluster"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_affects_storageVolume": {
+      "type": "AFFECTS",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "incident_has_observation_observation": {
+      "type": "HAS_OBSERVATION",
+      "from": {
+        "node": "incident"
+      },
+      "to": {
+        "node": "observation"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_explains_incident": {
+      "type": "EXPLAINS",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "incident"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_component": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_k8sWorkload": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_k8sCluster": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "k8sCluster"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_storageVolume": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_deployment": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "deployment"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_codeArtifact": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "codeArtifact"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_attributed_to_change": {
+      "type": "ATTRIBUTED_TO",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "change"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "component_realized_by_k8sWorkload": {
+      "type": "REALIZED_BY",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "k8sWorkload_in_cluster_k8sCluster": {
+      "type": "IN_CLUSTER",
+      "from": {
+        "node": "k8sWorkload"
+      },
+      "to": {
+        "node": "k8sCluster"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "component_uses_storage_storageVolume": {
+      "type": "USES_STORAGE",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "person_authored_commit": {
+      "type": "AUTHORED",
+      "from": {
+        "node": "person"
+      },
+      "to": {
+        "node": "commit"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "person_committed_commit": {
+      "type": "COMMITTED",
+      "from": {
+        "node": "person"
+      },
+      "to": {
+        "node": "commit"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "commit_introduced_change": {
+      "type": "INTRODUCED",
+      "from": {
+        "node": "commit"
+      },
+      "to": {
+        "node": "change"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "change_modifies_codeArtifact": {
+      "type": "MODIFIES",
+      "from": {
+        "node": "change"
+      },
+      "to": {
+        "node": "codeArtifact"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "change_applied_to_component": {
+      "type": "APPLIED_TO",
+      "from": {
+        "node": "change"
+      },
+      "to": {
+        "node": "component"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "change_applied_to_k8sWorkload": {
+      "type": "APPLIED_TO",
+      "from": {
+        "node": "change"
+      },
+      "to": {
+        "node": "k8sWorkload"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "change_applied_to_k8sCluster": {
+      "type": "APPLIED_TO",
+      "from": {
+        "node": "change"
+      },
+      "to": {
+        "node": "k8sCluster"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "change_applied_to_storageVolume": {
+      "type": "APPLIED_TO",
+      "from": {
+        "node": "change"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_supported_by_observation": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "observation"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_supported_by_codeArtifact": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "codeArtifact"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_supported_by_change": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "change"
+      },
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME"
+        },
+        "validTo": {
+          "type": "ZONED DATETIME"
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "k8sWorkload_uses_storage_storageVolume": {
+      "type": "USES_STORAGE",
+      "from": {
+        "node": "k8sWorkload"
+      },
+      "to": {
+        "node": "storageVolume"
+      },
+      "description": "An explicitly declared workload storage association, normalized from fixture/source bindings without representing pods or claims.",
+      "properties": {
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "method": {
+          "type": "STRING"
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "system_has_state_stateSnapshot": {
+      "type": "HAS_STATE",
+      "from": {
+        "node": "system"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Retained state history for this stable resource.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "system_latest_state_stateSnapshot": {
+      "type": "LATEST_STATE",
+      "from": {
+        "node": "system"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Optional derived pointer for current display, scoped by source/facet. Never used to reconstruct historical state.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "component_has_state_stateSnapshot": {
+      "type": "HAS_STATE",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Retained state history for this stable resource.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "component_latest_state_stateSnapshot": {
+      "type": "LATEST_STATE",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Optional derived pointer for current display, scoped by source/facet. Never used to reconstruct historical state.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "k8sWorkload_has_state_stateSnapshot": {
+      "type": "HAS_STATE",
+      "from": {
+        "node": "k8sWorkload"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Retained state history for this stable resource.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "k8sWorkload_latest_state_stateSnapshot": {
+      "type": "LATEST_STATE",
+      "from": {
+        "node": "k8sWorkload"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Optional derived pointer for current display, scoped by source/facet. Never used to reconstruct historical state.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "k8sCluster_has_state_stateSnapshot": {
+      "type": "HAS_STATE",
+      "from": {
+        "node": "k8sCluster"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Retained state history for this stable resource.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "k8sCluster_latest_state_stateSnapshot": {
+      "type": "LATEST_STATE",
+      "from": {
+        "node": "k8sCluster"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Optional derived pointer for current display, scoped by source/facet. Never used to reconstruct historical state.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "storageVolume_has_state_stateSnapshot": {
+      "type": "HAS_STATE",
+      "from": {
+        "node": "storageVolume"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Retained state history for this stable resource.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "storageVolume_latest_state_stateSnapshot": {
+      "type": "LATEST_STATE",
+      "from": {
+        "node": "storageVolume"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Optional derived pointer for current display, scoped by source/facet. Never used to reconstruct historical state.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "stateSnapshot_supersedes_stateSnapshot": {
+      "type": "SUPERSEDES",
+      "from": {
+        "node": "stateSnapshot"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "description": "Links a corrected assertion version to the previous assertion of the same stateKey. An ordinary real-world state transition is represented by validity intervals, not a correction.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG."
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "component_running_release_deployment": {
+      "type": "RUNNING_RELEASE",
+      "from": {
+        "node": "component"
+      },
+      "to": {
+        "node": "deployment"
+      },
+      "description": "An explicit, interval-scoped association to a running release. Supports replacements and rollback without inferring runtime code from the newest commit.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "k8sWorkload_running_release_deployment": {
+      "type": "RUNNING_RELEASE",
+      "from": {
+        "node": "k8sWorkload"
+      },
+      "to": {
+        "node": "deployment"
+      },
+      "description": "An explicit, interval-scoped association to a running release. Supports replacements and rollback without inferring runtime code from the newest commit.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME",
+          "description": "Time this relationship assertion became known to the KG.",
+          "must_exist": true
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME",
+          "description": "End of this assertion version in knowledge time; retained for audit/corrections."
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "assertionId": {
+          "type": "STRING",
+          "description": "Source-backed relationship assertion identity."
+        },
+        "validFrom": {
+          "type": "ZONED DATETIME",
+          "description": "Inclusive real-world start of this association.",
+          "must_exist": true
+        },
+        "validTo": {
+          "type": "ZONED DATETIME",
+          "description": "Exclusive real-world end of this association, when known."
+        },
+        "observedAt": {
+          "type": "ZONED DATETIME",
+          "description": "When the source observed the association."
+        },
+        "timeBasis": {
+          "type": "STRING",
+          "one_of": [
+            "explicit_effective_time",
+            "observed_snapshot"
+          ]
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      },
+      "extensions": {
+        "custom": {
+          "temporalPolicy": "Retain ended associations. Filter every topology hop at the same effective time and knowledge cutoff. A corrected assertion is appended as a new relationship assertion; supersededAt marks the prior assertion knowledge interval."
+        }
+      }
+    },
+    "finding_supported_by_stateSnapshot": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "stateSnapshot"
+      },
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_supported_by_deployment": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "deployment"
+      },
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "finding_supported_by_commit": {
+      "type": "SUPPORTED_BY",
+      "from": {
+        "node": "finding"
+      },
+      "to": {
+        "node": "commit"
+      },
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_deployment": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "deployment"
+      },
+      "description": "Source-backed lifecycle event for a deployment attempt or incident. Preserves transitions rather than relying on an overwritten latest status.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    },
+    "observation_observed_on_incident": {
+      "type": "OBSERVED_ON",
+      "from": {
+        "node": "observation"
+      },
+      "to": {
+        "node": "incident"
+      },
+      "description": "Source-backed lifecycle event for a deployment attempt or incident. Preserves transitions rather than relying on an overwritten latest status.",
+      "properties": {
+        "recordedAt": {
+          "type": "ZONED DATETIME"
+        },
+        "supersededAt": {
+          "type": "ZONED DATETIME"
+        },
+        "sourceId": {
+          "type": "STRING"
+        },
+        "sourceRef": {
+          "type": "STRING"
+        },
+        "id": {
+          "type": "STRING"
+        },
+        "recordHash": {
+          "type": "STRING"
+        }
+      }
+    }
+  },
+  "extensions": {
+    "custom": {
+      "status": "approved_for_demo_implementation",
+      "scope": "Question-driven current and historical SRE diagnostics over a realistic prepared temporal KG. Live ingestion is deferred. This draft is not loaded by the application.",
+      "provenance": {
+        "nodes": [
+          "namespace",
+          "source_id",
+          "source_ref",
+          "record_hash",
+          "observed_at",
+          "ingested_at",
+          "ontology_version"
+        ],
+        "relationships": [
+          "source_id",
+          "source_ref",
+          "method",
+          "observed_at",
+          "valid_from",
+          "valid_to",
+          "recorded_at",
+          "superseded_at"
+        ],
+        "rules": [
+          "DEPENDS_ON points from the dependent component to its dependency. Declared dependencies and observed trace dependencies retain distinct methods and validity intervals.",
+          "IMPLEMENTED_BY records declared source ownership. INCLUDES records an explicit release-to-artifact mapping; neither asserts a causal defect.",
+          "Code must match a known release revision to be described as deployed. An unmatched snapshot is available source context with an explicit coverage limitation.",
+          "Incident-to-observation associations require explicit source references or a documented, labeled correlation rule. Time proximity alone is not proof of cause.",
+          "Aliases are declared by source data; ambiguous system/service names require clarification.",
+          "Confirmed findings require a human confirmation or a source-marked verified historical postmortem with provenance. The model cannot confirm its own hypotheses.",
+          "Source records are idempotent and namespace scoped. Conflicting immutable payloads preserve the ingestion cursor and report an error.",
+          "Observation kinds include metric_window, log_event, error_event, trace_summary, alert and kubernetes_event. Evidence attaches to the exact observed resource.",
+          "APPLIED_TO requires a recorded applied operational change, not an unapplied Git commit or intended configuration.",
+          "Infrastructure failures are hypotheses supported by observations and topology; shared hosting alone is not evidence of an actual failure.",
+          "Kubernetes scope is workload and cluster only. Namespace is a workload property; Kubernetes UIDs and stable cluster IDs distinguish recreated workload objects.",
+          "Current state is a derived projection of retained state assertions. Historical diagnosis filters all state and topology by effective time; knowledge time controls whether later evidence/corrections are available.",
+          "A historical known-then replay excludes later observations and confirmations. A retrospective analysis may use later evidence and postmortems, explicitly labeled with their observation and recorded/confirmation times.",
+          "Source timestamps and source provenance never imply a live connector exists. Prepared demo records and runtime source integrations remain separately documented.",
+          "Every evidence assertion carries recordedAt; knowledge-time filtering must not reference undeclared or guessed timestamps. ingestedAt remains ingestion provenance and must not silently replace an earlier source event time.",
+          "Observation contracts distinguish kind, metricName, errorType, source-backed eventCount and alertRule/threshold. Units, dimensions and window/sample metadata must be compatible before numerical comparison.",
+          "Deployment and incident status transitions are retained as timestamped lifecycle observations; a latest-status property alone does not establish historical status.",
+          "Finding confirmation time is explicit. Both evidence availability and actual confirmation time constrain a known-then replay."
+        ]
+      },
+      "future_source_adapters_not_required_for_demo": {
+        "service_manifest": "Stable systems/components, aliases and versioned membership/dependency/source-ownership assertions with effective and recorded times.",
+        "repository_export": "Code/config snapshots, symbols and exact revision/line provenance; no guessed runtime call graph.",
+        "deployment_export": "Release events and explicit component/artifact associations.",
+        "structured_logs": "Error/log observations, preserving timestamps, fingerprints, counts and source records.",
+        "metric_export": "Latency, error rate, saturation and healthy baseline windows with units and aggregation metadata.",
+        "trace_export": "Selected trace summaries and dependencies derived from actual cross-service parent-child span relationships.",
+        "incident_export": "Historical/current incident records and explicitly referenced observations.",
+        "verified_postmortem_export": "Previously confirmed findings with attribution, confirmation time and source-marked verification.",
+        "kubernetes_export": "Timestamped workload/cluster snapshots and changes, source-supported effective/recorded times, namespace properties, storage associations and aggregate observations. No pod or worker-node graph is required."
+      },
+      "demo_data_requirements": [
+        "Seed a coherent, realistic prepared graph; clearly label all operational data as synthetic. A new ingestion pipeline is not required for the demo.",
+        "Include healthy baseline periods, symptom bursts, plausible delays, unrelated releases, repeated errors, missing data and recovery.",
+        "Include a latency case, an error-rate case and an intermittent availability case across payments, billing and profiles.",
+        "Keep scenario ground truth in test expectations, outside agent inputs and graph construction rules.",
+        "Provide inspectable supporting code excerpts, release revisions, metric windows, log messages and historical postmortems for graph evidence. Any source references must resolve to actual local fixture records, not fictitious production URLs.",
+        "Demonstrate question -> service/system resolution -> diagnostic steps -> retrieved relationships -> cited diagnosis. Existing ingestion capabilities can remain available without extending or presenting them as completed v2 connectors.",
+        "Include current-state workload/cluster/storage associations and time-consistent aggregate observations for relevant services. Kubernetes objects are simulated; no running cluster is required.",
+        "Include both an unrelated recent Git commit and a relevant non-Git operational change so diagnostics cannot equate newest commit with cause.",
+        "For at least one resolved historical incident, current state must be healthy and materially differ from state during the incident; diagnosis must retrieve the old state and old topology.",
+        "Include storage configured at 3000 IOPS before a change, 300 during the incident, and 3000 after recovery, with corresponding observed latency windows. A current healthy value must not erase the incident-time configuration.",
+        "Include a dependency or workload/cluster association that changed after the incident, to test as-of topology rather than just timestamp filtering of logs.",
+        "Keep later confirmed findings and at least one late-arriving observation/correction, and test known-then replay separately from retrospective analysis.",
+        "Prepare actual numeric, unit-bearing observation records for request latency, dependency latency, database waits and storage behavior, with comparable baseline/incident/recovery windows, sample counts and provenance.",
+        "Prepare exact error messages, alert threshold/evaluation records, trace timings, explicit release/commit/code mappings and relevant before/after operational changes for comprehensive diagnosis packages.",
+        "Test that report values reproduce retrieved records and deterministic calculations, that invalid evidence references or fabricated measurements are rejected, and that exports retain evidence despite subsequent KG state updates."
+      ],
+      "migration": "After approval, implement as an explicit ontology v2 migration/new dataset namespace. Preserve the dummy_data baseline; do not silently reinterpret existing Symptom nodes as Observation nodes.",
+      "not_in_first_slice": [
+        "Representing every source-code token or every raw log/span as a graph node",
+        "Automatic causal edges inferred from correlation",
+        "Complete static/dynamic program analysis",
+        "New ingestion connectors, continuous data replay or production remediation",
+        "Full raw telemetry retention in Neo4j; use representative events/aggregates and resolvable raw fixture references"
+      ],
+      "database_application": "Draft only. Neo4j Community implementation will enforce identity uniqueness in Neo4j and validate existence/type requirements in Python. No schema DDL or data migration has been executed.",
+      "diagnostic_scope": {
+        "application_dependency_hops": 3,
+        "kubernetes_context_hops": 2,
+        "storage_hops": 1,
+        "max_retrieved_graph_nodes": 100,
+        "evidence_window_minutes": 30,
+        "status": "proposed retrieval budgets; not implemented or benchmarked",
+        "strategy": "Inspect bounded application dependencies and relevant workload/cluster/storage context valid at the selected time. Compare a bounded number of state versions and aggregated observation windows before/during/after the incident. No pod or worker-node traversal.",
+        "boundary": "Kubernetes scope stops at workload and cluster. No pods, individual worker nodes, containers, ReplicaSets, control-plane internals, CNI/CSI internals or physical disks.",
+        "max_state_versions_per_resource_facet": 6,
+        "max_total_state_versions": 60
+      },
+      "state_model": {
+        "runtime_entities": [
+          "System",
+          "Component",
+          "K8sWorkload",
+          "K8sCluster",
+          "StorageVolume"
+        ],
+        "policy": "Stable resource identities + retained StateSnapshot nodes + time-versioned topology. Current state is a derived view, not the entire stored graph.",
+        "snapshots": "Retain meaningful configuration/status versions by entity, facet and authoritative source. Continuous telemetry remains timestamped Observation windows rather than a state version for every metric sample.",
+        "topology": "Keep previous dependencies, workload realization, cluster membership, storage bindings and running-release associations with validity and recorded-time bounds. Never overwrite old associations with current ones.",
+        "immutable_evidence": "Retain timestamped Observation, Commit, Deployment, Change and Finding records. CodeArtifact content is immutable by repository/revision/path. Deployment and incident lifecycle transitions are explicit source-backed Observation events; their latest status is a derived display projection. Corrections preserve prior assertions.",
+        "corrections": "Record effective time separately from knowledge time. Closing/correcting a historical assertion appends a revision and preserves the older assertion for what-was-known-then replay.",
+        "freshness": "Display observedAt and missing/stale coverage. An open validity bound does not prove continued health or uninterrupted state."
+      },
+      "temporal_queries": {
+        "inputs": [
+          "incident/service scope",
+          "effectiveAt or incident window",
+          "knowledgeAsOf",
+          "analysisMode"
+        ],
+        "effective_time": "validFrom <= effectiveAt AND (validTo IS NULL OR effectiveAt < validTo). All traversed topology and relevant state use the same effective time.",
+        "knowledge_time": "recordedAt <= knowledgeAsOf AND (supersededAt IS NULL OR knowledgeAsOf < supersededAt). Applied to assertion versions and evidence availability.",
+        "modes": {
+          "known_then": "Use an explicit historical knowledge cutoff. Do not use observations or findings that were only recorded/confirmed later.",
+          "retrospective": "Use a later/current knowledge cutoff while reconstructing the past effective-time graph. Later postmortems, recovery evidence or corrections are allowed when clearly labeled as learned later, not observations available during the incident."
+        },
+        "comparison": "Retrieve selected before/during/after state and observation windows. Do not assume one topology applies across the entire interval when an association changes.",
+        "incomplete_evidence": "Missing snapshot, conflicting source assertions, sampling gaps, stale observations and truncated searches are visible limitations; absence of evidence is not evidence of healthy state."
+      },
+      "realtime_scope": {
+        "in_demo": "Prepared, timestamped records populate the same history-capable ontology. The KG represents accumulated observability, source changes, deployments and state/topology changes.",
+        "deferred": "No new live collectors, streaming transport, reconciliation worker or realtime ingestion pipeline is required for this demo.",
+        "future": "A production collector can append facts using the same identity, temporal, provenance and idempotency contracts."
+      },
+      "diagnosis_package": {
+        "status": "review contract; not implemented in the running application",
+        "goal": "Every investigation produces a comprehensive, inspectable package of retrieved diagnostic evidence and grounded interpretation. A prose hypothesis alone is insufficient.",
+        "scope": {
+          "fields": [
+            "investigationId",
+            "originalQuestion",
+            "resolvedEntityIds",
+            "environment",
+            "timezone",
+            "incidentWindow",
+            "baselineWindow",
+            "recoveryWindow",
+            "effectiveAt",
+            "knowledgeAsOf",
+            "analysisMode",
+            "dataAsOf",
+            "coverage"
+          ],
+          "rule": "State the exact question, entity/time resolution, source freshness and the windows actually examined. Do not imply complete coverage beyond retrieved sources or configured search bounds."
+        },
+        "diagnosis": {
+          "fields": [
+            "summary",
+            "rankedHypotheses",
+            "suspectedOriginEntityId",
+            "mechanism",
+            "impact",
+            "supportingEvidenceIds",
+            "contradictingEvidenceIds",
+            "verificationStatus"
+          ],
+          "rule": "Distinguish observations from inferred mechanisms and human-confirmed findings. Rank hypotheses using evidence; do not assign invented confidence percentages."
+        },
+        "propagationChain": {
+          "fields": [
+            "orderedEntityIds",
+            "retrievedRelationshipAssertionIds",
+            "effectiveIntervals",
+            "evidenceIdsPerStep",
+            "inferredMechanismPerStep",
+            "missingLinks"
+          ],
+          "rule": "Explain the hypothesized trigger, local failure mechanism and downstream effects. Every topology edge must be retrieved and valid for the represented time; causal annotations are hypotheses, not fabricated stored CAUSES edges."
+        },
+        "measurements": {
+          "fields": [
+            "entityId",
+            "metricName",
+            "value",
+            "unit",
+            "aggregation",
+            "windowStart",
+            "windowEnd",
+            "sampleCount",
+            "dimensions",
+            "baselineEvidenceIds",
+            "incidentEvidenceIds",
+            "recoveryEvidenceIds",
+            "derivedComparisons",
+            "sourceRef",
+            "observedAt",
+            "recordedAt"
+          ],
+          "rule": "Display exact source values and before/during/after windows where available. Compare compatible metric definitions, units, environments, dimensions and aggregation windows. A missing baseline or sample count is explicit, never guessed.",
+          "computations": "Compute differences, ratios and rates deterministically outside the LLM; retain input evidence IDs and formula. Do not divide by a zero/missing baseline, infer rates without denominators, average percentiles or aggregate percentile windows without appropriate source distributions."
+        },
+        "errorsAlertsAndLogs": {
+          "fields": [
+            "entityId",
+            "evidenceId",
+            "timestampOrWindow",
+            "errorType",
+            "fingerprint",
+            "severity",
+            "messageVerbatim",
+            "stackExcerpt",
+            "sourceCount",
+            "retrievedSampleCount",
+            "alertRule",
+            "threshold",
+            "observedValue",
+            "traceId",
+            "sourceRef"
+          ],
+          "rule": "Preserve exact selected source messages and error/alert details with bounded excerpts. Deduplicate using source identity/fingerprint. Retrieved sample counts are not total error counts; report totals/rates only when backed by complete aggregation records and denominators."
+        },
+        "traceEvidence": {
+          "fields": [
+            "traceId",
+            "spanIds",
+            "callerEntityId",
+            "calleeEntityId",
+            "operation",
+            "startTime",
+            "duration",
+            "unit",
+            "status",
+            "sampleCoverage",
+            "evidenceId",
+            "sourceRef"
+          ],
+          "rule": "Show request and dependency timings for retrieved trace samples. Parallel spans must not be naively summed into request latency; sampled traces are not automatically representative of all requests."
+        },
+        "changeAndCodeTimeline": {
+          "fields": [
+            "eventId",
+            "kind",
+            "effectiveAt",
+            "recordedAt",
+            "targetEntityIds",
+            "deploymentId",
+            "runningReleaseInterval",
+            "repository",
+            "commitSha",
+            "author",
+            "committer",
+            "beforeValue",
+            "afterValue",
+            "changedFiles",
+            "diffOrExcerpt",
+            "codeArtifactIds",
+            "sourceRef"
+          ],
+          "rule": "Include relevant deployments, commits, configuration changes and database/infrastructure patches, showing actual before/after facts when available. Distinguish committed code from code explicitly mapped to the running release at incident time; current/unreleased code does not establish the historical deployed state."
+        },
+        "historicalContext": {
+          "fields": [
+            "incidentId",
+            "incidentWindow",
+            "matchedSignals",
+            "confirmedFindingIds",
+            "confirmationTime",
+            "attributedEntityIds",
+            "supportingEvidenceIds",
+            "differencesFromCurrentCase",
+            "learnedLater"
+          ],
+          "rule": "Explain why the historical case is relevant and where it differs. Known-then replay excludes later information; retrospective analysis can include later findings and recovery evidence with explicit availability times."
+        },
+        "alternativesAndGaps": {
+          "fields": [
+            "hypothesis",
+            "supportingEvidenceIds",
+            "contradictingEvidenceIds",
+            "missingEvidence",
+            "dataFreshness",
+            "queryTruncation",
+            "unavailableHistoricalCoverage",
+            "decisiveNextCheck"
+          ],
+          "rule": "Do not treat an absent deployment, error or metric in a capped query as proof of absence across the system. Preserve counterevidence and list precise missing inputs."
+        },
+        "verificationPlan": {
+          "fields": [
+            "check",
+            "targetEntityIds",
+            "evidenceGapTested",
+            "expectedDiscriminatingObservation",
+            "verificationStatus"
+          ],
+          "rule": "Each check tests a concrete mechanism or distinguishes competing hypotheses. No autonomous production remediation or self-confirmation."
+        },
+        "evidenceGraph": {
+          "fields": [
+            "nodes",
+            "relationships",
+            "stateSnapshotIds",
+            "effectiveIntervals",
+            "knowledgeIntervals",
+            "citationHighlights",
+            "suspectedPathAnnotations"
+          ],
+          "rule": "Package the exact retrieved temporal subgraph. The interactive view preserves stored edge direction and clearly separates observed relationships from hypothesized propagation."
+        },
+        "executionAndProvenance": {
+          "fields": [
+            "stages",
+            "toolTemplateNames",
+            "queryParameters",
+            "durations",
+            "resultCounts",
+            "retrievalBudgets",
+            "sourceIds",
+            "evidenceIds",
+            "recordHashes",
+            "ontologyVersion",
+            "modelId",
+            "modelOptions",
+            "validationResults"
+          ],
+          "rule": "Record observable diagnostic steps, results and next actions. Retain the evidence snapshot and exact generated report for review; do not claim that rerunning a local model guarantees byte-identical output."
+        },
+        "exports": {
+          "humanReadable": "Dashboard report with tables, timeline, expandable exact excerpts and interactive evidence graph; downloadable self-contained offline HTML report.",
+          "machineReadable": "Downloadable JSON including diagnosis, source measurement records, retrieved temporal graph, citations, stage results and execution/provenance manifest.",
+          "retention": "Keep the exported evidence snapshot so later KG updates do not silently alter the evidence underlying an existing report. This is report retention, not a second database."
+        },
+        "failureBehavior": "If local model analysis fails, export the retrieved evidence, measurements, graph, completed stages and explicit analysis-unavailable status. Never fabricate a diagnosis or numerical values.",
+        "demoData": "All operational measurements remain realistic synthetic fixture records. Their actual stored values, source references and time windows must be inspectable. Scenario ground truth stays outside the agent input."
+      },
+      "readiness_review": {
+        "status": "Ready for implementation of the agreed demo scope; query correctness and diagnostic quality are not yet verified.",
+        "covered_questions": [
+          "Why is Payments API slow now, including cross-service and workload/cluster/storage dependencies?",
+          "What was wrong with Payments API at a historical time, using state/topology/release history?",
+          "Which deployment, commit, code/config delta or operational patch could explain the observations?",
+          "How did baseline, incident and recovery measurements differ, and which exact errors/alerts/traces support the diagnosis?",
+          "What was known then versus what a later postmortem established?"
+        ],
+        "implementation_proof_required": [
+          "Retrieve incident-time topology/state even when the current state is healthy and placement has since changed.",
+          "Retrieve the actually running release and code; exclude unrelated or undeployed commits from causal assertions.",
+          "Match report numeric values and exact error messages to stored evidence, with reproducible derived calculations.",
+          "Enforce valid-time and knowledge-time filters, confirmation timing, source identity and retrieval budgets.",
+          "Complete the SRE question -> visible diagnostic stages -> interactive graph -> JSON/HTML evidence package workflow."
+        ],
+        "ontology_changes": "No new entity types were needed in this review. Tightened evidence availability timestamps, metric/error/alert fields, confirmation timestamps and deployment/incident lifecycle links."
+      }
+    }
+  }
+}

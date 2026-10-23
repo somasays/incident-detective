@@ -3,6 +3,8 @@ services:
   neo4j:
     image: neo4j:2026.10.0
     container_name: incident-detective-neo4j
+    entrypoint: ["tini", "-g", "--", "/bin/bash", "/incident-detective/start_neo4j.sh"]
+    command: ["neo4j"]
     ports:
       - "127.0.0.1:7474:7474"
       - "127.0.0.1:7687:7687"
@@ -16,7 +18,10 @@ services:
       NEO4J_dbms_usage__report_enabled: "false"
       NEO4J_dbms_fleet__manager_enabled: "false"
       NEO4J_server_fleet__discovery_enabled: "false"
+      NEO4J_dbms_security_procedures_unrestricted: "apoc.meta.*"
+      NEO4J_dbms_security_procedures_allowlist: "apoc.meta.*"
     volumes:
+      - ./scripts/start_neo4j.sh:/incident-detective/start_neo4j.sh:ro
       - neo4j_data:/data
       - neo4j_logs:/logs
     healthcheck:

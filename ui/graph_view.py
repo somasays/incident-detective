@@ -41,7 +41,16 @@ def build_network(evidence: dict, analysis: dict | None = None, *, overview=Fals
     for id, n in nodes.items():
         label = n["label"]
         is_current = label == "Incident" and id == current
-        color = PALETTE[label]
+        color = PALETTE.get(
+            label,
+            {
+                "StorageVolume": "#0D9488",
+                "Change": "#B83C49",
+                "StateSnapshot": "#526D96",
+                "K8sCluster": "#7861AA",
+                "K8sWorkload": "#2563EB",
+            }.get(label, "#526D96"),
+        )
         if label == "Component" and n.get("type") in {"pipeline", "connector", "worker"}:
             color = "#0D9488"
         elif label == "Component" and n.get("type") in {"storage", "cache"}:

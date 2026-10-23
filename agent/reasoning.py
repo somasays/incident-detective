@@ -24,7 +24,7 @@ class Hypothesis(BaseModel):
         description="Separate observed facts from the possible causal mechanism.",
     )
     cause_entity_id: str | None = None
-    supporting_evidence_ids: list[str] = Field(min_length=1, max_length=12)
+    supporting_evidence_ids: list[str] = Field(min_length=1, max_length=32)
     contradicting_or_missing_evidence: list[str] = Field(
         min_length=1,
         max_length=6,
