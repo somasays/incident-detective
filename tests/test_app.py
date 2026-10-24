@@ -127,6 +127,7 @@ def test_temporal_workspace_is_only_workspace_and_reruns_do_not_infer():
             "Knowledge graph",
         ]
         assert reasoner.calls == 0
+        app.text_input(key="_question_input").set_value("Why is profile service unstable?")
         next(b for b in app.button if b.label == "Investigate →").click().run()
         assert not app.exception
         assert reasoner.calls == 1
@@ -138,6 +139,10 @@ def test_temporal_workspace_is_only_workspace_and_reruns_do_not_infer():
         assert not app.exception
         app.radio(key="temporal_page").set_value("Investigate").run()
         assert not app.exception
+        assert app.text_input(key="_question_input").value == "Why is profile service unstable?"
+        assert [tab.label for tab in app.tabs][:3] == ["Investigation", "Report", "Evidence"]
+        app.checkbox(key="full_evidence_graph").check().run()
+        assert not app.exception
         assert reasoner.calls == 1
 
 
@@ -146,6 +151,17 @@ def test_database_unavailable_has_recovery_command():
         app = app_test().run()
         assert not app.exception
         assert any("Neo4j is unavailable" in error.value for error in app.error)
+
+
+def test_renderer_failure_is_not_reported_as_database_outage():
+    with (
+        patch("ui.temporal_workspace.Database", DummyDatabase),
+        patch("ui.temporal_workspace.investigation_view", side_effect=RuntimeError("bad renderer")),
+    ):
+        app = app_test().run()
+        assert not app.exception
+        assert any("could not render" in error.value for error in app.error)
+        assert all("Neo4j is unavailable" not in error.value for error in app.error)
 
 
 def test_ontology_works_without_database_or_model():

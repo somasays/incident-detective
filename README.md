@@ -8,34 +8,37 @@ This is a local SRE lab with **synthetic systems, code and events**. The prepare
 temporal investigation; a separate importer demonstrates continuous construction from local exports.
 No production systems are connected.
 
-![Ontology explorer showing Component relationships and property definitions](docs/screenshots/ontology.jpg)
-
-The ontology explorer in the current app. [View all screenshots](docs/screenshots/README.md),
-including the stored graph and a real evidence-only investigation.
-
 ## Run locally
 
 Requires Python 3.11–3.13, [uv](https://docs.astral.sh/uv/), Docker with a running engine, and
 [Ollama](https://ollama.com/). Initial dependency, image and model downloads need internet access.
 The default model is intended for an Apple Silicon Mac with 24 GB memory.
 
+First run:
+
 ```bash
-python3 scripts/setup_env.py
-uv sync --locked
-docker compose up -d
-ollama pull qwen2.5:14b-instruct
-uv run python temporal_demo.py seed
-uv run streamlit run app.py
+./bootstrap.sh
 ```
 
-If Ollama is not running, open its macOS app or run `OLLAMA_NO_CLOUD=1 ollama serve` in another
-terminal before pulling the model.
+The bootstrap installs locked dependencies, creates a private `.env` if needed, starts Neo4j and
+Ollama, downloads missing local weights, seeds the graph, checks MCP/structured inference, and starts
+Streamlit. It preserves existing configuration and data. Docker's engine must already be running.
+
+Subsequent runs use installed artifacts and enforce local inference:
+
+```bash
+./run.sh
+```
+
+Use `--setup-only` to prepare services without starting the dashboard, `--evidence-only` to run with
+model interpretation disabled, or `--port 8502` if another dashboard is already running. The scripts
+do not stop unrelated processes. Neo4j and a bootstrap-started Ollama remain available after Ctrl-C.
 
 Open **[Incident Detective](http://localhost:8501)**. Neo4j Browser is at
 [localhost:7474](http://localhost:7474); use username `neo4j` and the password in your private `.env`.
 
-`setup_env.py` generates a password and preserves an existing `.env`. For local inference, check
-these settings in that file:
+Both scripts select Ollama by default. Settings are read fresh from `.env`; explicit shell variables
+take precedence. The local model defaults are:
 
 ```dotenv
 LLM_PROVIDER=ollama
@@ -48,6 +51,14 @@ Compose runs Neo4j Community **2026.10.0**, binds its ports to loopback and pres
 volumes. Seeding is scoped and idempotent; `docker compose stop` stops the database without deleting
 its data. Model selection is explicit: an optional OpenAI-compatible provider is also implemented,
 and sends retrieved evidence to the configured endpoint. There is no automatic provider fallback.
+Using that provider through the setup launcher requires an explicit shell override:
+
+```bash
+LLM_PROVIDER=openai OPENAI_MODEL=gpt-5-mini ./bootstrap.sh --port 8502
+```
+
+This mode sends evidence to the configured model endpoint and requires network access. `run.sh`
+rejects remote inference throughout the app session, including later file edits.
 
 ## Explore the demo
 
@@ -59,10 +70,14 @@ The app has three workspaces:
 | **Ontology** | Entity types, properties and permitted relationship directions |
 | **Knowledge graph** | Searchable stored records, their actual edges and source provenance |
 
-Start with **Profile instability**, then click **Investigate →**. Follow **Checks & results** to see
-what the agent retrieved and how each check changed its assessment. **Evidence records** contains
-the measurements, original messages, state history and running code. Export JSON or a standalone
-HTML report from the completed investigation.
+Open **New investigation**, choose **Profile instability**, then click **Investigate →**.
+The evidence map stays on the left; the adjacent **Investigation** panel shows actual checks in
+order. Open **Hypotheses & check details** for the full assessments. **Report** contains the provisional
+diagnosis, next verification and JSON/HTML downloads. **Evidence** contains measurements, original
+messages, state history and running code. Finding cards below the map show cited source values.
+
+The workspace uses warm off-white surfaces, muted forest/sage accents and a scrollable side panel.
+Ontology, graph browsing and standalone reports share the same local, system-font theme.
 
 Try the other prepared questions:
 
@@ -80,6 +95,30 @@ For a 90-second walkthrough: show the ontology, investigate Profile instability,
 and its source records, then contrast historical Payments with Payments now. A supported hypothesis
 still requires independent verification.
 
+## Screenshots
+
+**Ontology:** approved entity properties and relationship directions.
+
+![Ontology explorer showing Component relationships and property definitions](docs/screenshots/ontology.jpg)
+
+**Stored graph:** actual dependency records with provenance inspection and pagination.
+
+![Stored component dependencies and record provenance](docs/screenshots/knowledge-graph.jpg)
+
+**Investigation:** the evidence canvas, activity timeline and cited finding cards from a real GPT-5 mini run.
+
+![Profile evidence canvas and investigation timeline](docs/screenshots/investigation.jpg)
+
+**Report:** a provisional hypothesis, explicit incomplete status and a next verification action.
+
+![Report panel beside the evidence graph](docs/screenshots/report.jpg)
+
+**Measurements:** prior/incident values and inspectable source records.
+
+![Profile measurements and investigation controls](docs/screenshots/measurements.jpg)
+
+See [capture details](docs/screenshots/README.md) for the run mode and dataset.
+
 ## How it works
 
 1. Resolve the service and requested time against graph identities.
@@ -90,8 +129,10 @@ still requires independent verification.
 5. Validate structure, citations, entities and numerical claims, then render the retrieved graph.
 
 The loop permits at most **3 hypotheses, 8 checks, 10 model calls and 3 dependency hops**, with a
-180-second investigation budget. Failures preserve retrieved evidence and mark analysis unavailable.
-The graph visualization uses inline PyVis assets. LangSmith tracing and usage telemetry are disabled.
+180-second investigation budget. Exhausted budgets return incomplete evidence packages; transport or
+validation failures preserve evidence and mark analysis unavailable.
+The light dashboard and graph visualization use local styles and inline PyVis assets.
+LangSmith tracing and usage telemetry are disabled.
 
 The current temporal graph uses [`knowledge/ontology.v2.json`](knowledge/ontology.v2.json) and
 [`data/temporal_scenarios.json`](data/temporal_scenarios.json). The local-export importer uses the
@@ -134,16 +175,10 @@ valid output structure does not establish a correct root cause.
 
 ## Run offline
 
-Install the dependencies, Docker image and Ollama model first. Set `LLM_PROVIDER=ollama` in `.env`,
-then disconnect the internet while keeping localhost available:
+Complete `./bootstrap.sh` once, then disconnect the internet while keeping localhost available:
 
 ```bash
-docker compose up -d --pull never
-uv sync --locked --offline
-ollama list
-uv run --offline python temporal_demo.py seed
-uv run --offline python scripts/verify_temporal.py --with-model
-uv run --offline streamlit run app.py
+./run.sh
 ```
 
 Check that hypotheses and graphs render without external asset requests. The verifier denies
@@ -156,9 +191,12 @@ limitations, see [offline operation](docs/architecture.md#offline-operation).
 - [`knowledge/temporal_queries.py`](knowledge/temporal_queries.py): time-scoped retrieval.
 - [`knowledge/diagnostic_tools.py`](knowledge/diagnostic_tools.py): the four typed evidence tools.
 - [`agent/skills/temporal-diagnosis/SKILL.md`](agent/skills/temporal-diagnosis/SKILL.md): diagnostic policy.
-- [`ui/temporal_workspace.py`](ui/temporal_workspace.py): Streamlit workspaces and activity view.
+- [`ui/temporal_workspace.py`](ui/temporal_workspace.py): navigation and investigation lifecycle.
+- [`ui/case_view.py`](ui/case_view.py): evidence canvas and investigation/report/evidence panel.
+- [`ui/activity.py`](ui/activity.py), [`ui/diagnosis.py`](ui/diagnosis.py): timeline and result detail.
+- [`knowledge/explorer.py`](knowledge/explorer.py): scoped, paginated graph browsing.
 - [`ingestion/`](ingestion/): local-export adapters and transactional checkpoints.
-- [Cleanup opportunities](docs/cleanup-review.md): prioritized findings and verification results.
+- [Cleanup review](docs/cleanup-review.md): implemented changes, verification and remaining limitations.
 
 The original two-incident prototype is preserved at Git tag **`dummy_data`**. The current app opens
 the temporal lab. Production adapters for the temporal ontology, retention/archiving and sustained

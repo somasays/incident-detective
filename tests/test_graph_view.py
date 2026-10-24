@@ -11,7 +11,7 @@ def test_expected_nodes_edges_and_highlight(evidence, valid_analysis):
     assert "deployment:deploy-014" in ids
     node = next(n for n in graph.nodes if n["id"] == "deployment:deploy-014")
     assert node["borderWidth"] == 3
-    assert node["color"]["border"] == "#FF6B76"
+    assert node["color"]["border"] != node["color"]["background"]
     retrieved = {(e["source"], e["type"], e["target"]) for e in evidence["graph"]["edges"]}
     by_visual = {f"{n['label'].lower()}:{n['id']}": n["id"] for n in evidence["graph"]["nodes"]}
     assert len(graph.edges) == len(retrieved)

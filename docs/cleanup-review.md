@@ -1,102 +1,91 @@
-# Cleanup opportunities
+# Cleanup review
 
-Review date: 24 October 2026. This review identifies changes; it does not implement the refactor.
-Existing uncommitted agent/UI work was preserved.
+Review and implementation: **24 October 2026**. An independent reviewer inspected the existing code,
+implemented a scoped reasoning/measurement extraction, and reviewed the integrated changes. Existing
+agent policy and presentation work was preserved.
 
-## 1. Connect ingestion to the ontology the app actually reads — P1
+## Implemented
 
-[`ingest.py`](../ingest.py) imports `knowledge.ontology`; [`ingestion/store.py`](../ingestion/store.py)
-writes `demo_id` namespaces. [`knowledge/temporal_queries.py`](../knowledge/temporal_queries.py) reads
-`datasetId=sre-temporal-v2`, with different observation, state and relationship contracts.
+| Finding | Change |
+| --- | --- |
+| Unreachable one-shot temporal reasoning | Removed the dead branch and `analyze_package`; `agent/temporal.py` is a small public facade over the explicit evidence-only StateGraph and bounded hypothesis loop. |
+| Duplicate metric calculations | `knowledge/measurements.py` now supplies both retrieval paths, with deterministic grouping, window selection and zero-baseline handling. |
+| Monolithic Streamlit workspace | Extracted activity, diagnosis, graph workspaces and pure formatting helpers. Removed unused `ui/views.py` and `ui/styles.py`. |
+| Browser queries embedded in UI and scanning all nodes | Moved reads into `knowledge/explorer.py`, added ontology-allowlisted labels, composite scope/ID indexes, and keyset pagination for records and relationships. |
+| Inconsistent configuration precedence | One fresh loader reads `.env`, with shell overrides taking precedence. Database resources are keyed by settings, secret values are hidden from representations, and offline mode remains enforced across rerenders. |
+| Rendering bugs reported as database outages | Connection/configuration/render failures now have distinct UI paths and a regression test. |
+| Stale preflight requiring original incident IDs | Preflight checks the current temporal dataset through real read-only MCP and requests a short structured response from the selected model. |
+| Model calls not sharing the full remaining deadline | Metadata verification, generation and retries now respect the investigation deadline. Budget exhaustion preserves previous assessments in an incomplete package. |
+| Long manual setup sequence | `bootstrap.sh` prepares and launches; `run.sh` uses installed artifacts and enforces local inference. Setup handles readiness, idempotent seeding, missing models and occupied ports. |
+| Dark UI and incomplete screenshot presentation | Dashboard, graphs and standalone reports use a light theme. The README embeds five current app captures. |
 
-**Impact:** imported manifests/logs/deployments/traces cannot feed the current temporal workspace.
-The two demos work independently, but the end-to-end construction story has a real integration gap.
+The live default Component-browser query used `NodeIndexSeek` after this change. Its predecessor
+used `AllNodesScan`. This validates the access path on the prepared graph, not capacity at production
+scale. Search still filters properties within the selected scope.
 
-**Change:** make the temporal ontology the canonical target, define explicit mappings and identity/time
-rules for each adapter, and migrate into a fresh scoped dataset. Add a real integration test proving a
-source append is retrieved by the temporal investigator. Keep legacy fixtures until this works.
+## Verification
 
-## 2. Move and index the graph-browser queries — P2
+- Full suite with real Neo4j and Ollama enabled: **199 passed**, including local structured inference,
+  grounding, ablation, MCP retrieval, temporal queries, graph pagination and launcher regressions.
+- Ruff and `git diff --check`: passed.
+- Final five-case evidence-only verifier: passed real MCP retrieval and generated JSON/HTML reports
+  under `artifacts/cleanup-final-evidence`.
+- `LLM_PROVIDER=ollama ./run.sh --setup-only`: passed real Docker readiness, idempotent seed,
+  temporal catalog retrieval through MCP and a short structured local-model response.
+- `./run.sh`: launched the light dashboard at `http://localhost:8501` using installed artifacts.
+- Explicit GPT-5 mini bootstrap: MCP and structured model preflight passed; dashboard launched at
+  `http://localhost:8502`. The actual model-backed outcomes are recorded below.
 
-[`ui/temporal_workspace.py`](../ui/temporal_workspace.py), `stored_graph_view`, embeds unlabelled Cypher
-with dynamic property search and sorting. A real `EXPLAIN` of its default Component query produced:
+### GPT-5 mini end-to-end results
 
-```text
-AllNodesScan → Filter → Projection → Top → Projection → ProduceResults
-```
+All five prepared questions were exercised against the configured GPT-5 mini endpoint using real
+Neo4j/MCP retrieval. **The model-backed verifier did not pass.** Acceptance was left unchanged.
 
-**Impact:** the 150-record display cap limits output, not the scan. More stored history or unrelated
-data can increase search work. Rows after the cap have no pagination path, and relationship results
-use an unordered limit.
+| Run | Outcome |
+| --- | --- |
+| Historical Payments | Incomplete at the investigation budget; no supported initiating cause. |
+| Payments known at the time | Endpoint timeout in the earlier run, preserving evidence. Deadline routing was subsequently corrected and covered by regression tests; this case was not rerun against the final correction. |
+| Payments now | Incomplete at the budget; no supported root-cause mechanism. |
+| Billing | Incomplete; a worker-related hypothesis was retained but the initiating mechanism remained unresolved. |
+| Profile, CLI | Analysis unavailable after the model repeated an already executed check despite the bounded correction retry. |
+| Profile, Streamlit | Incomplete with a provisional cache-client-limit hypothesis, real measurements, four checks and a next verification action. |
 
-**Change:** put explorer queries behind the repository, select labels from the ontology allowlist,
-add indexes appropriate to scope/order/search, and use stable keyset pagination for nodes and edges.
-Keep “All types” as an explicit bounded query strategy. Compare query plans and database work using
-the same generated history before and after; the present dataset does not establish capacity.
+The Streamlit result was downloaded through both UI controls. Its JSON citations and cause entity
+were checked against the retrieved evidence. The standalone HTML export contains inline graph
+assets and no external asset URLs. [Screenshots](screenshots/README.md) show this actual run, including
+the incomplete status; no successful diagnosis was substituted. Local reports are retained under
+`artifacts/cleanup-gpt5-validation`, `artifacts/cleanup-gpt5-final` and `artifacts/cleanup-gpt5-ui`.
 
-## 3. Consolidate configuration and refresh behavior — P2
+The test suite does not establish that every model investigation reaches a correct diagnosis.
+The optional MCP `gds.version` capability probe logs an error because GDS is absent; retrieval works
+and the application does not require GDS.
 
-[`agent/providers.py`](../agent/providers.py), `ModelSettings.from_env`, rereads `.env` and gives it
-precedence over process variables. [`config.py`](../config.py), `Settings.from_env`, reads the process
-environment after a one-time `load_dotenv()`. `get_temporal_reasoner` constructs Ollama settings through
-that second path. The database resource is cached without a configuration key.
+## Remaining work
 
-**Impact:** changing providers/OpenAI settings and changing Ollama/database settings have different
-refresh behavior. A shell override can also lose to `.env` for one provider but win elsewhere.
+1. **Source-to-temporal mapping:** `ingest.py` and the local manifest/log/deployment/trace adapters
+   write the original `demo_id` ontology; the current workspace reads `datasetId=sre-temporal-v2`.
+   Define explicit identity, observation and temporal mappings, then verify a source append through
+   the temporal investigator. The current prepared temporal dataset is not a live ingestion pipeline.
+2. **Diagnostic quality and latency:** deeper model runs can exhaust the 180-second budget before
+   finding an initiating change. Structured, grounded output can still be incomplete. Preserve these
+   limits while evaluating prompts, tool choices and local model performance on independent cases.
+3. **Sustained growth:** retention, archival, indexed text search and long-duration ingestion/query
+   benchmarks remain unimplemented. Pagination bounds results, not the entire database's growth.
+4. **Legacy boundary:** original agent/query/memory modules still have active CLI and test callers.
+   They were retained; deleting them before a deliberate migration would break supported commands.
 
-**Change:** use one typed configuration loader with documented precedence, validate the selected
-provider once, and make restart/cache invalidation behavior explicit. Test configuration changes using
-temporary files and environment mocks. Never include credentials in a cache key exposed to the UI.
+No cloud fallback, additional database or production system integration was introduced. GPT-5 mini
+runs were explicitly requested; the local launch path continues to use Ollama.
 
-## 4. Split the workspace and distinguish rendering errors — P2
+## Workspace presentation follow-up
 
-[`ui/temporal_workspace.py`](../ui/temporal_workspace.py) combines navigation, database queries,
-ontology rendering, PyVis adaptation, session state, graph execution and hypothesis activity in roughly
-730 lines. Its outer exception handler reports every failure as “Local Neo4j is unavailable”.
+The reference-inspired layout remains in Streamlit: an off-white evidence canvas, forest/sage accents,
+a scrollable Investigation/Report/Evidence panel and finding cards below the graph. The Report tab
+keeps verification and downloads beside the map; the Evidence tab presents measurements as readable
+cards with full tables and exact source windows available below. The standalone HTML shares the theme
+and explicitly retains investigation status.
 
-**Impact:** a renderer or result-shape bug appears to be a database outage. UI and retrieval changes
-are coupled. The new `ui/presentation.py` already starts separating pure presentation helpers.
-
-**Change:** finish that extraction, give each workspace its own module, move queries into the
-repository, and catch connection errors at the database boundary. Preserve stage/render failure
-details separately, without leaking credentials. Add a regression test for a rendering failure while
-Neo4j remains reachable.
-
-## 5. Retire unreachable and overlapping investigation paths — P2
-
-[`agent/temporal.py`](../agent/temporal.py), `build_temporal_investigator`, immediately delegates to
-the hypothesis loop when a reasoner is provided. The nested one-shot `analyze_evidence` branch that
-calls `reasoner.analyze_package()` is therefore unreachable. The original `agent/graph.py` pipeline,
-legacy query/UI modules, and two ontology formats also remain alongside the temporal stack.
-`scripts/preflight.py` still requires the original INC-104/INC-105 seed rather than checking the
-temporal dataset used by the current app.
-
-**Impact:** parallel state/result/validation contracts make it harder to identify the supported path
-and easier to fix one implementation while leaving another inconsistent.
-
-**Change:** name the evidence-only workflow explicitly, remove unreachable one-shot reasoning after
-checking references, and separate legacy/demo code behind a clear compatibility boundary. Consolidate
-shared result contracts and temporal predicates before deleting code still used by ingestion tests
-and `verify_demo.py`. The `dummy_data` tag already preserves the original prototype.
-
-## Suggested order
-
-Agree the canonical ontology and adapter mapping first. Then extract the repository/UI boundaries,
-fix explorer query plans and pagination, unify configuration, and retire redundant paths. Retention,
-archiving and temporal performance tests should precede sustained ingestion. Avoid a broad cosmetic
-rewrite while the source-to-temporal mapping is unresolved.
-
-## Verification performed
-
-- `uv run --offline ruff check .` — passed.
-- `uv run --offline pytest -q -m 'not integration and not llm'` — 144 passed, 24 deselected.
-- `RUN_NEO4J_TESTS=1 uv run --offline pytest -q -m 'not llm'` — 167 passed, 1 deselected.
-- `uv run --offline python scripts/verify_temporal.py --output artifacts/readme-verification` — all
-  five evidence-only cases passed through real local Neo4j MCP; JSON and HTML reports were generated.
-- Live schema, constraints and indexes inspected; the explorer scan finding was confirmed with EXPLAIN.
-- Current Streamlit ontology and stored graph views inspected in Chrome; a real evidence-only Profile
-  investigation completed in the UI. Four fresh captures are in [the screenshot gallery](screenshots/README.md).
-
-The model-backed test was excluded. Ollama was not running during this pass, so these results do not
-claim fresh local-model inference or a complete offline UI demonstration. The MCP server logged an
-optional `gds.version` capability probe failure; retrieval still completed and GDS is not required.
+Browser checks verified a fresh evidence-only Profile run against real Neo4j/MCP, full/focused graph
+switching, navigation with the prior GPT result preserved, and the updated HTML download. The current
+non-LLM suite passed **198 tests** with one model-backed test deselected. This UI follow-up does not
+change or resolve the model-backed diagnostic limitations documented above.

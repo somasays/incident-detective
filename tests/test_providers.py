@@ -13,7 +13,8 @@ from agent.temporal import OpenAITemporalReasoner, TemporalReasoner
 from knowledge.mcp_db import mcp_parameters, result_rows
 
 
-def test_explicit_provider_selection_and_local_default():
+def test_explicit_provider_selection_and_local_default(monkeypatch):
+    monkeypatch.delenv("INCIDENT_OFFLINE", raising=False)
     assert isinstance(get_temporal_reasoner(ModelSettings(), client=Mock()), TemporalReasoner)
     assert isinstance(
         get_temporal_reasoner(ModelSettings(provider="openai")), OpenAITemporalReasoner

@@ -147,7 +147,9 @@ def test_real_historical_and_current_states_and_topology(temporal_db):
         e["source"] == PREFIX + "auth-service-workload" and e["target"] == PREFIX + "cluster-west"
         for e in present["topology"]["edges"]
     )
-    assert len(past["stages"]) == 6
+    assert [step["stage"] for step in past["stages"]] == [
+        "resolve_question", "reconstruct_topology", "collect_temporal_evidence", "finalize"
+    ]
     assert "<iframe" in report_html(past)
 
 

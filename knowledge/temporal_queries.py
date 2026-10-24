@@ -7,6 +7,7 @@ from datetime import UTC, datetime, timedelta
 from time import monotonic
 from zoneinfo import ZoneInfo
 
+from knowledge.measurements import measurement_rows
 from knowledge.temporal_fixture import DATA_AS_OF, DATASET, instant, iso
 from knowledge.temporal_seed import spec
 
@@ -466,50 +467,7 @@ class TemporalRepository:
                 known=known,
             )
             remember(rows)
-        measurements = []
-        groups = {}
-        for obs in observations:
-            if obs["kind"] != "metric_window":
-                continue
-            stamp = instant(obs["windowEnd"])
-            phase = (
-                "baseline"
-                if stamp <= at - timedelta(minutes=25)
-                else (
-                    "recovery"
-                    if instant(obs["windowStart"]) >= at + timedelta(minutes=15)
-                    else "incident"
-                )
-            )
-            obs["phase"] = phase
-            key = (
-                obs["entityId"],
-                obs["metricName"],
-                obs["unit"],
-                obs["aggregation"],
-                tuple(obs.get("dimensions", [])),
-            )
-            groups.setdefault(key, {})[phase] = obs
-        for key, phases in groups.items():
-            row = {
-                "entityId": key[0],
-                "metric": key[1],
-                "unit": key[2],
-                "aggregation": key[3],
-                "dimensions": list(key[4]),
-                **{phase: o["value"] for phase, o in phases.items()},
-                "evidenceIds": {phase: o["id"] for phase, o in phases.items()},
-                "windows": {
-                    phase: [o["windowStart"], o["windowEnd"]] for phase, o in phases.items()
-                },
-                "sampleCounts": {phase: o.get("sampleCount") for phase, o in phases.items()},
-            }
-            if "baseline" in phases and "incident" in phases:
-                before, during = phases["baseline"]["value"], phases["incident"]["value"]
-                row["difference"] = round(during - before, 4)
-                row["ratio"] = round(during / before, 4) if before else None
-                row["calculation"] = "incident - baseline; incident / baseline (if baseline != 0)"
-            measurements.append(row)
+        measurements = measurement_rows(observations, request)
         if len(nodes) > 150:
             raise ValueError("Evidence graph exceeds the 150-node investigation budget")
         return {

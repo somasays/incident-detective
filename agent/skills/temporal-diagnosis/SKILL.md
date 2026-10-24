@@ -40,6 +40,9 @@ No invented entities, times, values, unsupported health claims, or numerical con
 Keep each response under 600 words. next_verification is a concrete independent check outside this
 retrieved graph, never 'N/A' and never a repetition of a graph query already performed.
 The summary is a concise diagnosis for the SRE; do not put instructions to yourself in it.
+Use a 4–8 word hypothesis statement and a short action label for each check. Assessment summary
+is one plain sentence about the result, not a recap of the investigation. Keep IDs, chronology,
+citations and detailed reasoning in explanation. next_verification requests one concrete action.
 Assess every existing hypothesis ID exactly once. New hypotheses are tested by the next check,
 and assessed after that check; do not silently rename or drop an existing hypothesis.
 If current target observations do not corroborate the symptom, return no hypotheses and explain the

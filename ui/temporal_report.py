@@ -39,8 +39,12 @@ def report_html(package):
 
     analysis = package.get("analysis", {})
     sections = [
-        "<h1>Incident Detective · Diagnostic evidence package</h1>",
+        "<header><strong>incident detective</strong><span>Investigation report</span></header>",
+        "<h1>Diagnostic evidence package</h1>",
         "<p>Prepared synthetic operational data · graph-grounded investigation</p>",
+        "<p class='report-status'>Status: "
+        + esc(package.get("status", "unknown").replace("_", " "))
+        + " · Findings are provisional and require independent verification.</p>",
         "<h2>Question and time scope</h2><pre>"
         + esc(json.dumps(package.get("request", {}), indent=2))
         + "</pre>",
@@ -117,13 +121,20 @@ def report_html(package):
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; frame-src 'self' about:;
 script-src 'unsafe-inline'; style-src 'unsafe-inline'; img-src data:; font-src data:">
 <title>Incident Detective evidence package</title><style>
-body{background:#0b1220;color:#e5e7eb;font:15px system-ui;margin:32px auto;
-max-width:1450px;padding:20px}
-h1,h2{color:#8ec7ff}p{line-height:1.7}pre{white-space:pre-wrap;overflow-wrap:anywhere}
-.scroll{overflow:auto;border:1px solid #293548;border-radius:8px;margin:18px 0}
+body{background:#f5f6f2;color:#303c33;font:14px system-ui;margin:24px auto;
+max-width:1250px;padding:24px}
+header{display:flex;justify-content:space-between;border-bottom:1px solid #dde3d5;
+padding:0 0 20px;color:#365747}header strong{font-size:22px;letter-spacing:-1px}
+header span{font-size:12px;color:#858b7f}
+h1{font:34px Georgia,serif;color:#365747;margin-top:35px}
+h2{font-size:17px;color:#496345;margin-top:35px;border-top:1px solid #dde3d5;padding-top:24px}
+h3{font:23px Georgia,serif;color:#496345}p{line-height:1.8}
+.report-status{background:#edf0e7;border:1px solid #dde3d5;padding:14px;border-radius:5px}
+pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#fff;padding:18px;border-radius:5px}
+.scroll{overflow:auto;border:1px solid #dde3d5;border-radius:5px;margin:18px 0;background:#fff}
 table{border-collapse:collapse;font-size:12px}
-td,th{text-align:left;padding:10px;border:1px solid #293548;
-min-width:100px;max-width:500px;overflow-wrap:anywhere;vertical-align:top}th{background:#172b45}
+td,th{text-align:left;padding:10px;border:1px solid #e0e4db;
+min-width:100px;max-width:500px;overflow-wrap:anywhere;vertical-align:top}th{background:#edf0e7}
 </style></head><body>"""
         + "".join(sections)
         + "</body></html>"

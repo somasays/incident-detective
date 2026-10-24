@@ -121,6 +121,7 @@ def check(tool, ids, hypotheses=None):
         "tool": tool,
         "entity_ids": ids,
         "hypothesis_ids": hypotheses or ["H1"],
+        "label": "Check the proposed mechanism",
         "question": "Does this evidence support the proposed mechanism?",
     }
 
@@ -147,6 +148,9 @@ def evaluation(next_check, supported=False):
                 "metric_evidence_ids": ["storage-slow"] if supported else [],
                 "mechanism_evidence_ids": ["allocation"] if supported else [],
                 "cause_entity_id": "volume" if supported else None,
+                "summary": "Reduced allocation may explain the storage latency."
+                if supported
+                else "The mechanism still needs current evidence.",
                 "explanation": "Storage latency was 115 ms with a reduced allocation."
                 if supported
                 else "More evidence is needed to test the mechanism.",
@@ -225,6 +229,17 @@ def test_cold_start_without_previous_incident_still_investigates():
     result, _, _ = run(responses, history=False)
     assert result["status"] == "complete", result.get("error")
     assert not result["precedents"]
+
+
+def test_compact_result_cannot_introduce_an_unsupported_measurement():
+    responses = successful_responses()
+    responses[-1]["assessments"][0]["summary"] = "Latency reached 999999 ms."
+    responses.append(deepcopy(responses[-1]))
+    result, _, _ = run(responses)
+    assert result["status"] == "unavailable"
+    assert "unsupported numerical value" in result["error"]
+    assert result["observations"]
+    assert not result["analysisAvailable"]
 
 
 def test_query_bookkeeping_does_not_consume_model_budget_or_discard_exported_logs():

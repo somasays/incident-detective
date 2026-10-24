@@ -147,6 +147,10 @@ def seed_temporal(database, fixture=None):
             f"CYPHER 25 CREATE INDEX sre_v2_{label.lower()}_dataset IF NOT EXISTS "
             f"FOR (n:{label}) ON (n.datasetId, n.recordedAt)"
         )
+        database.write(
+            f"CYPHER 25 CREATE INDEX sre_v2_{label.lower()}_page IF NOT EXISTS "
+            f"FOR (n:{label}) ON (n.datasetId, n.id)"
+        )
     database.write("CYPHER 25 CALL db.awaitIndexes(30)")
     return {
         "datasetId": DATASET,

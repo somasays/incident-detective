@@ -11,6 +11,11 @@ from typing import Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 from pydantic import BaseModel, ConfigDict, Field
 
+from agent.temporal_reasoning import (
+    model_context,
+    validate_numerical_claims,
+    validate_temporal_analysis,
+)
 from knowledge.diagnostic_tools import (
     TOOL_DESCRIPTIONS,
     BudgetExhausted,
@@ -49,9 +54,9 @@ class Candidate(StrictModel):
     id: str = Field(min_length=1, max_length=20)
     statement: str = Field(
         min_length=1,
-        max_length=150,
-        description="A short readable title, ideally under 12 words. "
-        "Put details in expected_support.",
+        max_length=80,
+        description="A complete, readable title in 4–8 words. No evidence IDs, timestamps "
+        "or multi-clause explanation. Put the details in expected_support.",
     )
     basis_evidence_ids: list[str] = Field(min_length=1, max_length=8)
     expected_support: str = Field(min_length=1, max_length=500)
@@ -67,6 +72,11 @@ class Check(StrictModel):
     ]
     entity_ids: list[str] = Field(min_length=1, max_length=3)
     hypothesis_ids: list[str] = Field(min_length=1, max_length=3)
+    label: str = Field(
+        min_length=1,
+        max_length=72,
+        description="A short action label in 3–8 words, without IDs or time windows.",
+    )
     question: str = Field(min_length=1, max_length=500)
 
 
@@ -85,6 +95,12 @@ class Assessment(StrictModel):
         "trigger is unresolved. Mechanism: evidence explains why the initiating resource degraded."
     )
     cause_entity_id: str | None
+    summary: str = Field(
+        min_length=1,
+        max_length=220,
+        description="One short sentence explaining what this check established or left unresolved. "
+        "Use plain language; keep citations and detailed chronology in explanation.",
+    )
     explanation: str = Field(min_length=1, max_length=1500)
     supporting_evidence_ids: list[str] = Field(max_length=12)
     contradicting_evidence_ids: list[str] = Field(max_length=8)
@@ -92,7 +108,11 @@ class Assessment(StrictModel):
     metric_evidence_ids: list[str] = Field(max_length=6)
     mechanism_evidence_ids: list[str] = Field(max_length=6)
     missing_evidence: list[str] = Field(max_length=6)
-    next_verification: str = Field(min_length=1, max_length=500)
+    next_verification: str = Field(
+        min_length=1,
+        max_length=180,
+        description="One concrete independent action in a short sentence, not a list of requests.",
+    )
 
 
 class Evaluation(StrictModel):
@@ -167,8 +187,6 @@ def validate_candidates(candidates, package, maximum):
 
 
 def compact_context(package):
-    from agent.temporal import model_context
-
     context = model_context(package)
     context["precedents"] = package.get("precedents", [])
     context["known_resource_ids"] = [n["id"] for n in package["topology"]["nodes"]]
@@ -294,11 +312,23 @@ def structured_decision(reasoner, model, payload, state, limits, validator):
             raise DecisionBudgetExhausted("Model-call or investigation-time budget reached", calls)
         calls += 1
         try:
-            reasoner.check_model()
-            raw = reasoner.generate(messages, schema, timeout_seconds=min(60, remaining - 1))
+            bounded_check = getattr(reasoner, "check_model_with_budget", None)
+            if callable(bounded_check):
+                bounded_check(timeout_seconds=remaining - 1)
+            else:
+                # Scripted/test reasoners retain the original check_model() contract.
+                reasoner.check_model()
+            remaining = state["deadline"] - monotonic()
+            if remaining < 2:
+                raise DecisionBudgetExhausted("Investigation-time budget reached", calls)
+            # The transport caps this by its configured timeout. A second fixed cap
+            # here would silently override a valid, longer local inference timeout.
+            raw = reasoner.generate(messages, schema, timeout_seconds=remaining - 1)
             decision = model.model_validate_json(raw).model_dump()
             validator(decision)
             return decision, calls, None
+        except DecisionBudgetExhausted:
+            raise
         except (ValueError, TypeError) as exc:
             error = str(exc)[:500]
             if "raw" in locals():
@@ -312,6 +342,8 @@ def structured_decision(reasoner, model, payload, state, limits, validator):
                 }
             )
         except Exception as exc:
+            if state["deadline"] - monotonic() < 2:
+                raise DecisionBudgetExhausted("Investigation-time budget reached", calls) from exc
             return None, calls, f"Model unavailable ({type(exc).__name__}): {str(exc)[:300]}"
     return None, calls, error
 
@@ -512,6 +544,11 @@ def build_hypothesis_loop(repository, reasoner, limits=None, tools=None):
                 ]
                 if not set(refs) <= state["package"]["index"].keys():
                     raise ValueError("Assessment cites unretrieved evidence")
+                validate_numerical_claims(
+                    assessment["summary"],
+                    [state["package"]["index"][eid] for eid in set(refs)],
+                    state["package"]["measurements"],
+                )
                 if not set(assessment["current_evidence_ids"]) <= current:
                     raise ValueError("A prior finding is not current confirming evidence")
                 metrics = {
@@ -686,8 +723,6 @@ def build_hypothesis_loop(repository, reasoner, limits=None, tools=None):
         return {"analysis": analysis, "status": status}
 
     def validate(state):
-        from agent.temporal import validate_temporal_analysis
-
         return {"analysis": validate_temporal_analysis(state["analysis"], state["package"])}
 
     def finish(state):

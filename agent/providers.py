@@ -2,12 +2,10 @@
 
 import os
 from dataclasses import dataclass, field
-from pathlib import Path
 from urllib.parse import urlparse
 
-from dotenv import dotenv_values
-
 from agent.reasoning import AnalysisUnavailable
+from config import load_environment
 
 
 @dataclass(frozen=True)
@@ -20,8 +18,7 @@ class ModelSettings:
 
     @classmethod
     def from_env(cls):
-        # Read fresh on each investigation, so saving .env does not require a restart.
-        values = {**os.environ, **dotenv_values(Path(__file__).resolve().parents[1] / ".env")}
+        values = load_environment()
         return cls(
             provider=(values.get("LLM_PROVIDER") or "ollama").strip().lower(),
             base_url=(values.get("OPENAI_BASE_URL") or "").strip().rstrip("/"),
@@ -70,10 +67,12 @@ class ModelSettings:
         )
 
 
-def get_temporal_reasoner(settings=None, client=None):
+def get_temporal_reasoner(settings=None, client=None, *, offline=False):
     from agent.temporal import OpenAITemporalReasoner, TemporalReasoner
 
     settings = settings or ModelSettings.from_env()
+    if (offline or os.environ.get("INCIDENT_OFFLINE") == "1") and settings.provider != "ollama":
+        raise AnalysisUnavailable("Offline mode requires Ollama; remote providers are disabled.")
     if settings.provider == "ollama":
         return TemporalReasoner(client=client)
     return OpenAITemporalReasoner(settings, client=client)

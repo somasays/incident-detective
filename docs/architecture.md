@@ -75,7 +75,10 @@ The model chooses among `expand_dependencies`, `inspect_observations`, `inspect_
 before their records can be inspected. Repeated identical checks are blocked.
 
 Budgets limit hypotheses to 3, checks to 8, model calls including retries to 10, dependency hops to 3,
-and investigation time to 180 seconds. Individual requests also have timeouts. The model payload has
+and investigation time to 180 seconds. Model metadata verification, generation and retries share the
+remaining deadline; individual requests also respect the configured provider timeout. Deadline
+exhaustion produces an incomplete package preserving prior assessments, rather than inventing a
+final diagnosis. A transport failure before the deadline marks analysis unavailable. The model payload has
 a 60 KB guard; the investigation evidence graph is capped at 150 nodes and 300 edges. Limits may
 reduce recall. A truncated query cannot establish that no matching evidence exists.
 
@@ -106,8 +109,25 @@ HTTPS URLs. LangSmith and legacy tracing flags are forcibly disabled. Driver/MCP
 Streamlit statistics and Neo4j usage reporting are disabled. Compose copies bundled APOC locally;
 startup does not download a plugin. GDS is not required.
 
-Restart Streamlit after changing database or Ollama settings. Provider settings have a separate refresh
-path today; configuration consolidation is recorded in the [cleanup review](cleanup-review.md).
+`config.load_environment()` reads `.env` fresh; explicit process variables take precedence for every
+provider and database setting. Streamlit reuses its MCP resource for the same settings and creates a
+new one when settings change. Credentials are excluded from settings representations.
+
+`./bootstrap.sh` installs locked dependencies, prepares configuration, starts services, seeds the
+current temporal dataset and verifies MCP plus a short structured model response before launching.
+`./run.sh` uses the installed lockfile, forbids image/model downloads and enforces Ollama for the
+whole dashboard session. `--evidence-only` disables model interpretation in the UI;
+`--setup-only` runs preparation without Streamlit. An occupied dashboard port is an explicit error.
+
+For an explicitly authorized remote-model demonstration, use the existing private OpenAI-compatible
+configuration with a shell override:
+
+```bash
+LLM_PROVIDER=openai OPENAI_MODEL=gpt-5-mini ./bootstrap.sh --port 8502
+```
+
+This command uses network inference. The default local launcher never selects that provider
+implicitly. `run.sh` rejects it even if `.env` is edited after startup.
 
 ## Offline operation
 
@@ -132,7 +152,27 @@ a claim that the whole Mac's internet connection has been physically disabled.
 ## Growth
 
 Bounded retrieval, query timeouts and model limits protect individual investigations, not total storage
-or constant query latency. The temporal graph explorer currently scans the graph before applying its
-display cap. There is no retention worker or long-duration ingestion benchmark for the temporal graph.
-Before continuous operation, add scoped/indexed queries, keyset pagination, event aggregation,
+or constant query latency. `knowledge/explorer.py` owns graph browsing: ontology-allowlisted labels,
+`(datasetId, id)` indexes and keyset cursors page records deterministically. All types uses a bounded
+union of label-specific reads. Relationships are separately paged between records on the current page;
+this is a view of stored edges, not the complete neighborhood of each visible record.
+
+The default Component query was profiled on the prepared fixture and used `NodeIndexSeek` rather than
+`AllNodesScan`. Property substring search still requires filtering within the selected scope; this small
+dataset does not establish sustained capacity. There is no retention worker or long-duration ingestion
+benchmark. Before continuous operation, add appropriate search indexes, event aggregation,
 retention/archiving and tests that preserve evidence needed by confirmed historical findings.
+
+## Code boundaries
+
+- `agent/temporal.py` is the public workflow facade. `agent/investigation_loop.py` owns model-guided
+  decisions; `agent/evidence_workflow.py` is the explicit model-free StateGraph.
+- `agent/temporal_reasoning.py` owns provider transports, context construction and grounding validation.
+  The unreachable one-shot reasoning path has been removed.
+- `knowledge/measurements.py` computes shared deterministic window comparisons for both repository
+  collection and diagnostic tools.
+- `ui/temporal_workspace.py` owns navigation, session state and execution. Activity, diagnosis and graph
+  workspaces have separate modules; `ui/case_view.py` composes the evidence canvas and adjacent
+  Investigation/Report/Evidence panel; repository queries no longer live in the Streamlit workspace.
+- Original ingestion and prototype modules remain where they have active CLI or test callers. Their
+  compatibility boundary is the separate ontology and namespace described above.

@@ -7,11 +7,11 @@ from importlib.resources import files
 from pyvis.network import Network
 
 PALETTE = {
-    "Component": "#2563EB",
-    "Deployment": "#B83C49",
-    "Incident": "#D97706",
-    "Symptom": "#E59A38",
-    "Finding": "#8B78CE",
+    "Component": "#426754",
+    "Deployment": "#AA7569",
+    "Incident": "#B9985A",
+    "Symptom": "#BE925C",
+    "Finding": "#899878",
 }
 
 
@@ -24,8 +24,7 @@ def build_network(evidence: dict, analysis: dict | None = None, *, overview=Fals
         height="590px",
         width="100%",
         directed=True,
-        bgcolor="#0B1423",
-        font_color="#E5E7EB",
+        bgcolor="#FFFFFF",
         cdn_resources="in_line",
     )
     graph = evidence.get("graph", {"nodes": [], "edges": []})
@@ -44,21 +43,22 @@ def build_network(evidence: dict, analysis: dict | None = None, *, overview=Fals
         color = PALETTE.get(
             label,
             {
-                "StorageVolume": "#0D9488",
-                "Change": "#B83C49",
-                "StateSnapshot": "#526D96",
-                "K8sCluster": "#7861AA",
-                "K8sWorkload": "#2563EB",
-            }.get(label, "#526D96"),
+                "StorageVolume": "#7A8C68",
+                "Change": "#AA7569",
+                "StateSnapshot": "#708269",
+                "K8sCluster": "#949B7B",
+                "K8sWorkload": "#426754",
+            }.get(label, "#708269"),
         )
-        if label == "Component" and n.get("type") in {"pipeline", "connector", "worker"}:
-            color = "#0D9488"
-        elif label == "Component" and n.get("type") in {"storage", "cache"}:
-            color = "#526D96"
+        kind = n.get("type", n.get("kind"))
+        if label == "Component" and kind in {"pipeline", "connector", "worker"}:
+            color = "#7A8C68"
+        elif label == "Component" and kind in {"storage", "database", "cache"}:
+            color = "#708269"
         elif (
             label == "Incident" and not is_current and not (overview and n.get("status") == "open")
         ):
-            color = "#7861AA"
+            color = "#949B7B"
         level = depth.get(id, 6)
         if is_current or (overview and label == "Incident"):
             level = 0
@@ -97,12 +97,17 @@ def build_network(evidence: dict, analysis: dict | None = None, *, overview=Fals
             shape="box" if label in {"Component", "Deployment"} else "dot",
             size=15 if label == "Symptom" else 19,
             color={
-                "background": "#702938" if id in highlighted else color,
-                "border": "#FF6B76" if id in highlighted else color,
-                "highlight": {"background": "#2563EB", "border": "#93C5FD"},
+                "background": "#77594F" if id in highlighted else color,
+                "border": "#C58E79" if id in highlighted else color,
+                "highlight": {"background": "#426754", "border": "#AABB9E"},
             },
             borderWidth=3 if id in highlighted else 1,
-            font={"face": "system-ui", "size": 13, "color": "#F1F5F9", "multi": False},
+            font={
+                "face": "system-ui",
+                "size": 13,
+                "color": "#FFFFFF" if label in {"Component", "Deployment"} else "#334155",
+                "multi": False,
+            },
             margin=13,
         )
     for e in graph["edges"]:
@@ -122,9 +127,9 @@ def build_network(evidence: dict, analysis: dict | None = None, *, overview=Fals
             ),
             arrows="to",
             dashes=e.get("properties", {}).get("method") == "observed_trace",
-            color="#5686B8" if important else "#394860",
+            color="#7D9480" if important else "#B6BEB0",
             width=2 if important else 1,
-            font={"size": 9, "color": "#9DACBF", "strokeWidth": 0, "align": "middle"},
+            font={"size": 9, "color": "#475569", "strokeWidth": 0, "align": "middle"},
         )
     network.set_options(
         json.dumps(
@@ -173,7 +178,9 @@ def render_evidence_graph(evidence: dict, analysis: dict | None = None) -> str:
     return render_network(build_network(evidence, analysis))
 
 
-def render_network(network: Network, hint="SCROLL TO ZOOM · DRAG TO PAN · HOVER TO INSPECT") -> str:
+def render_network(
+    network: Network, hint="SCROLL TO ZOOM · DRAG TO PAN · HOVER TO INSPECT", *, height=590
+) -> str:
 
     # Escape JSON's script terminator, including potentially hostile event/confirmation text.
     def js(value):
@@ -194,8 +201,8 @@ style-src 'unsafe-inline'; img-src data:; font-src data:; connect-src 'none'">
 <style>"""
         + _inline_asset("vis-network.css")
         + """
-html,body{margin:0;background:#0B1423;color:#94A3B8;font-family:system-ui}
-#graph{width:100%;height:590px;border-radius:12px}
+html,body{margin:0;background:#FDFEFB;color:#89917F;font-family:system-ui}
+#graph{width:100%;height:GRAPH_HEIGHTpx;border-radius:5px}
 #hint{position:absolute;bottom:14px;left:18px;font-size:11px;pointer-events:none}
 </style></head><body><div id="graph"></div>
 <div id="hint">"""
@@ -214,4 +221,4 @@ const network=new vis.Network(document.getElementById('graph'),{nodes,edges},"""
         + """);
 network.once('afterDrawing',()=>network.fit({animation:false}));
 </script></body></html>"""
-    )
+    ).replace("height:GRAPH_HEIGHTpx", f"height:{int(height)}px")

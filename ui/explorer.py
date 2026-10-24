@@ -8,7 +8,7 @@ from ui.graph_view import PALETTE, build_network, render_network
 
 
 def ontology_network(ontology):
-    network = Network(height="590px", width="100%", directed=True, bgcolor="#0B1423")
+    network = Network(height="590px", width="100%", directed=True, bgcolor="#FFFFFF")
     positions = {
         "Component": (0, 0),
         "Deployment": (-320, -180),
@@ -42,9 +42,9 @@ def ontology_network(ontology):
                 selfReferenceSize=45,
                 font={
                     "size": 12,
-                    "color": "#CBD5E1",
+                    "color": "#475569",
                     "strokeWidth": 5,
-                    "strokeColor": "#0B1423",
+                    "strokeColor": "#FFFFFF",
                     "align": "middle",
                 },
                 smooth={"enabled": True, "type": "curvedCW", "roundness": 0.18},
@@ -81,7 +81,7 @@ def neighborhood(graph, focus_id=None, hops=2):
     }
 
 
-def render_knowledge_graph(graph):
+def dependency_paths(graph):
     # Dependency paths are used only to lay out actual retrieved nodes in this explorer.
     components = {n["id"] for n in graph["nodes"] if n["label"] == "Component"}
     adjacency = {id: set() for id in components}
@@ -103,7 +103,11 @@ def render_knowledge_graph(graph):
                 if child not in paths:
                     paths[child] = paths[current] + [child]
                     queue.append(child)
+    return list(paths.values())
+
+
+def render_knowledge_graph(graph):
     network = build_network(
-        {"graph": graph, "dependency_paths": list(paths.values())}, overview=True
+        {"graph": graph, "dependency_paths": dependency_paths(graph)}, overview=True
     )
     return render_network(network, "STORED GRAPH · ZOOM / PAN / INSPECT · NO MODEL INFERENCE")
