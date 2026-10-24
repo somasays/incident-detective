@@ -4,9 +4,90 @@ Investigate a service **as it was at a particular time**. A bounded LangGraph ag
 dependencies in Neo4j, checks observations and changes, and produces hypotheses with inspectable
 evidence and a next verification step.
 
+![Profile evidence canvas and investigation timeline](docs/screenshots/investigation.jpg)
+
 This is a local SRE lab with **synthetic systems, code and events**. The prepared graph demonstrates
 temporal investigation; a separate importer demonstrates continuous construction from local exports.
 No production systems are connected.
+
+## Showcase
+
+The graph stays in view as you follow checks, review the report and inspect its sources.
+The screenshots show a real GPT-5 mini investigation marked incomplete; its hypothesis remains provisional.
+
+**Report:** a provisional hypothesis, explicit incomplete status and a next verification action.
+
+![Report panel beside the evidence graph](docs/screenshots/report.jpg)
+
+**Measurements:** prior/incident values and inspectable source records.
+
+![Profile measurements and investigation controls](docs/screenshots/measurements.jpg)
+
+**Ontology:** approved entity properties and relationship directions.
+
+![Ontology explorer showing Component relationships and property definitions](docs/screenshots/ontology.jpg)
+
+**Stored graph:** actual dependency records with provenance inspection and pagination.
+
+![Stored component dependencies and record provenance](docs/screenshots/knowledge-graph.jpg)
+
+See [capture details](docs/screenshots/README.md) for the run mode and dataset.
+
+## Explore the demo
+
+The app has three workspaces:
+
+| View | What to inspect |
+| --- | --- |
+| **Investigate** | Hypotheses, selected checks, returned evidence, diagnosis and dependency graph |
+| **Ontology** | Entity types, properties and permitted relationship directions |
+| **Knowledge graph** | Searchable stored records, their actual edges and source provenance |
+
+Open **New investigation**, choose **Profile instability**, then click **Investigate →**.
+The evidence map stays on the left; the adjacent **Investigation** panel shows actual checks in
+order. Open **Hypotheses & check details** for the full assessments. **Report** contains the provisional
+diagnosis, next verification and JSON/HTML downloads. **Evidence** contains measurements, original
+messages, state history and running code. Finding cards below the map show cited source values.
+
+The workspace uses warm off-white surfaces, muted forest/sage accents and a scrollable side panel.
+Ontology, graph browsing and standalone reports share the same local, system-font theme.
+
+Try the other prepared questions:
+
+| Question | What it exercises |
+| --- | --- |
+| Payments · 3 AM | Dependencies, infrastructure changes and baseline/incident/recovery measurements |
+| Payments · now | Checking whether the reported symptom is present after recovery |
+| Billing errors | Release and code provenance along an upstream dependency path |
+
+The demo clock is **23 October 2026, 10:05 Europe/Berlin**. “Now” and “today” use that clock;
+“3AM today” means `2026-10-23T01:00:00Z`. In **Investigation settings**, switch to **Known at the
+time** to exclude records learned later. **Evidence only** retrieves the graph without a model call.
+
+For a 90-second walkthrough: show the ontology, investigate Profile instability, inspect one check
+and its source records, then contrast historical Payments with Payments now. A supported hypothesis
+still requires independent verification.
+
+## How it works
+
+1. Resolve the service and requested time against graph identities.
+2. Retrieve immediate topology, target observations and relevant confirmed historical findings.
+3. Let the model choose a typed evidence check; fixed, parameterized Cypher runs through a local,
+   read-only Neo4j MCP process. Model output never becomes executable Cypher.
+4. Assess support, contradictions and gaps; continue within the budget or package the result.
+5. Validate structure, citations, entities and numerical claims, then render the retrieved graph.
+
+The loop permits at most **3 hypotheses, 8 checks, 10 model calls and 3 dependency hops**, with a
+180-second investigation budget. Exhausted budgets return incomplete evidence packages; transport or
+validation failures preserve evidence and mark analysis unavailable.
+The light dashboard and graph visualization use local styles and inline PyVis assets.
+LangSmith tracing and usage telemetry are disabled.
+
+The current temporal graph uses [`knowledge/ontology.v2.json`](knowledge/ontology.v2.json) and
+[`data/temporal_scenarios.json`](data/temporal_scenarios.json). The local-export importer uses the
+earlier ontology and a separate namespace; **it does not yet feed the temporal workspace**.
+See [architecture and configuration](docs/architecture.md) and
+[graph construction from local exports](docs/ingestion.md).
 
 ## Run locally
 
@@ -59,86 +140,6 @@ LLM_PROVIDER=openai OPENAI_MODEL=gpt-5-mini ./bootstrap.sh --port 8502
 
 This mode sends evidence to the configured model endpoint and requires network access. `run.sh`
 rejects remote inference throughout the app session, including later file edits.
-
-## Explore the demo
-
-The app has three workspaces:
-
-| View | What to inspect |
-| --- | --- |
-| **Investigate** | Hypotheses, selected checks, returned evidence, diagnosis and dependency graph |
-| **Ontology** | Entity types, properties and permitted relationship directions |
-| **Knowledge graph** | Searchable stored records, their actual edges and source provenance |
-
-Open **New investigation**, choose **Profile instability**, then click **Investigate →**.
-The evidence map stays on the left; the adjacent **Investigation** panel shows actual checks in
-order. Open **Hypotheses & check details** for the full assessments. **Report** contains the provisional
-diagnosis, next verification and JSON/HTML downloads. **Evidence** contains measurements, original
-messages, state history and running code. Finding cards below the map show cited source values.
-
-The workspace uses warm off-white surfaces, muted forest/sage accents and a scrollable side panel.
-Ontology, graph browsing and standalone reports share the same local, system-font theme.
-
-Try the other prepared questions:
-
-| Question | What it exercises |
-| --- | --- |
-| Payments · 3 AM | Dependencies, infrastructure changes and baseline/incident/recovery measurements |
-| Payments · now | Checking whether the reported symptom is present after recovery |
-| Billing errors | Release and code provenance along an upstream dependency path |
-
-The demo clock is **23 October 2026, 10:05 Europe/Berlin**. “Now” and “today” use that clock;
-“3AM today” means `2026-10-23T01:00:00Z`. In **Investigation settings**, switch to **Known at the
-time** to exclude records learned later. **Evidence only** retrieves the graph without a model call.
-
-For a 90-second walkthrough: show the ontology, investigate Profile instability, inspect one check
-and its source records, then contrast historical Payments with Payments now. A supported hypothesis
-still requires independent verification.
-
-## Screenshots
-
-**Ontology:** approved entity properties and relationship directions.
-
-![Ontology explorer showing Component relationships and property definitions](docs/screenshots/ontology.jpg)
-
-**Stored graph:** actual dependency records with provenance inspection and pagination.
-
-![Stored component dependencies and record provenance](docs/screenshots/knowledge-graph.jpg)
-
-**Investigation:** the evidence canvas, activity timeline and cited finding cards from a real GPT-5 mini run.
-
-![Profile evidence canvas and investigation timeline](docs/screenshots/investigation.jpg)
-
-**Report:** a provisional hypothesis, explicit incomplete status and a next verification action.
-
-![Report panel beside the evidence graph](docs/screenshots/report.jpg)
-
-**Measurements:** prior/incident values and inspectable source records.
-
-![Profile measurements and investigation controls](docs/screenshots/measurements.jpg)
-
-See [capture details](docs/screenshots/README.md) for the run mode and dataset.
-
-## How it works
-
-1. Resolve the service and requested time against graph identities.
-2. Retrieve immediate topology, target observations and relevant confirmed historical findings.
-3. Let the model choose a typed evidence check; fixed, parameterized Cypher runs through a local,
-   read-only Neo4j MCP process. Model output never becomes executable Cypher.
-4. Assess support, contradictions and gaps; continue within the budget or package the result.
-5. Validate structure, citations, entities and numerical claims, then render the retrieved graph.
-
-The loop permits at most **3 hypotheses, 8 checks, 10 model calls and 3 dependency hops**, with a
-180-second investigation budget. Exhausted budgets return incomplete evidence packages; transport or
-validation failures preserve evidence and mark analysis unavailable.
-The light dashboard and graph visualization use local styles and inline PyVis assets.
-LangSmith tracing and usage telemetry are disabled.
-
-The current temporal graph uses [`knowledge/ontology.v2.json`](knowledge/ontology.v2.json) and
-[`data/temporal_scenarios.json`](data/temporal_scenarios.json). The local-export importer uses the
-earlier ontology and a separate namespace; **it does not yet feed the temporal workspace**.
-See [architecture and configuration](docs/architecture.md) and
-[graph construction from local exports](docs/ingestion.md).
 
 ## Command-line investigations
 
